@@ -15,17 +15,17 @@ my $pg = Mojo::Pg->new('postgresql://postgres:postgres@localhost/econmod_v03');
 
 get '/production_tree.api' => sub {
 	my $c = shift;
-	
+
 	my $select = $pg->db->query('SELECT * FROM rules.all_productions ORDER BY aux_production_level ASC;');
 	$select = $select->expand;
-	
+
 	my @out = ();
 	while (my $next = $select->hash) {push(@out,$next);}
-	
+
 	say Dumper(\@out);
-	
+
 	$c->render(json => {activities => \@out});
-	
+
 };
 
 
@@ -33,7 +33,7 @@ get '/production_tree' => sub {
 	my $c = shift;
 
 	$c->render(template => 'overview');
-	
+
 };
 
 
@@ -45,9 +45,9 @@ __DATA__
 % layout 'default';
 % title 'Production tree';
 
-% content 
+% content
 %= javascript "//code.jquery.com/jquery-2.1.1.js"
-%= javascript "d3.v3.js"
+%= javascript "http://d3js.org/d3.v3.min.js"
 
 %= javascript "production_tree.js"
 
