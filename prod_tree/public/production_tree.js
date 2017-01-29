@@ -17,7 +17,7 @@ function refresh() {
 
 	jQuery.ajax({
 		async: true,
-		url: 'production_tree.api',
+		url: 'production.api',
 	//	data: data,
 		success: function(data,status){
 
@@ -38,7 +38,7 @@ function refresh() {
 				lines[aux]++;
 			});
 
-			console.log(lines);
+			//console.log(lines);
 
 			// Production box size
 			var pbw = 200;
@@ -71,6 +71,7 @@ function refresh() {
 				.attr("stroke","black")
 				.attr("stroke-width",2);
 
+
 			//console.dir(production_groups);
 
 			production_groups[0].forEach(function(v,i) {
@@ -78,18 +79,16 @@ function refresh() {
 				//console.log(i);
 				//console.dir(v);
 
-
 				// to simplify notation
-				//console.dir(v.__data__);
 				var a = v.__data__;
-				console.dir(a);
+				//console.dir(a);
 
 				// select i-th group
 				var gr = d3.select('#prod_'+i)
 
 				// get the absolute coordinates of parent (rect) element
 				var bbox = gr[0][0].getBBox();
-				console.dir(bbox);
+				//console.dir(bbox);
 
 				//console.log(a.activity);
 				var text = gr
@@ -245,7 +244,8 @@ function refresh() {
 					.attr("font-size", "24px")
 					.attr("fill", "black");
 
-
+          //enable click which opens up a new window for production
+          gr.on('click', function(d){ console.dir(d);window.open('/production?aid='+d.aid, '_blank')  });
 			});
 
 			//console.dir(production_groups);

@@ -109,7 +109,7 @@ CREATE TABLE activity (
     structureid integer NOT NULL,
     progress real,
     progress_max real,
-    type_activityid text NOT NULL
+    type_activityid integer NOT NULL
 );
 
 

@@ -647,7 +647,7 @@ SET default_with_oids = false;
 --
 
 CREATE TABLE type_activity (
-    type_activityid text NOT NULL,
+    type_activityid integer NOT NULL,
     type_structureid integer NOT NULL,
     stamina integer DEFAULT 0 NOT NULL,
     type_activity_name text,
@@ -663,7 +663,7 @@ ALTER TABLE type_activity OWNER TO postgres;
 --
 
 CREATE TABLE type_item_as_tool_in_activity (
-    type_activityid text NOT NULL,
+    type_activityid integer NOT NULL,
     type_itemid text NOT NULL,
     is_mandatory boolean,
     multiplicator_presence real DEFAULT 1 NOT NULL,
@@ -686,7 +686,7 @@ COMMENT ON COLUMN type_item_as_tool_in_activity.durability IS 'This coefficient 
 --
 
 CREATE TABLE type_item_in_activity (
-    type_activityid text NOT NULL,
+    type_activityid integer NOT NULL,
     type_itemid text NOT NULL,
     is_item_input boolean NOT NULL,
     item_count integer DEFAULT 1 NOT NULL
