@@ -52,13 +52,17 @@ get '/production' => sub {
 
 	my $structures = $pg->db->query('SELECT type_structure_name, type_structureid FROM rules.type_structure;');
 	$structures = $structures->arrays->to_array;
-#	forEach (@{$structures}) {$_};
 	say Dumper($structures);
+
+	my $items = $pg->db->query('SELECT type_itemid FROM rules.type_item;');
+	$items = $items->arrays->to_array;
+	say Dumper($items);
+
 
 # roman letters for structure levels
 	my $sl = [['I',1],['II',2]];
 
-	$c->render(template => 'production_edit', structures => $structures, structurelevels => $sl);
+	$c->render(template => 'production_edit', structures => $structures, structurelevels => $sl, items => $items);
 };
 
 
@@ -101,6 +105,14 @@ __DATA__
 			jQuery('#name').val(p.activity);
 			jQuery('#stamina').val(p.stamina);
 
+			for (var ctg in ['inputs']) {
+				console.log(ctg);
+				for (var key in p[ctg]){
+					jQuery('#items_inputs').append('<option value='+key+'>'+key+'</option>');
+				};
+			};
+
+
 		}
 	)
 % end
@@ -118,6 +130,24 @@ Structure:
 %= select_field structure => $structures,  (id => 'structures')
 %= select_field structurelevel => $structurelevels,  (id => 'structurelevel')
 %= input_tag 'updatestructure', id=>'updatestructurebutton', type => 'button', value => 'update structure', onclick => 'console.dir({sid:jQuery("#structures>option:selected").val(),level:jQuery("#structurelevel>option:selected").val()})'
+
+<table>
+<% foreach my $ctg ('inputs', 'tools', 'outputs') { %>
+		<tr>
+			<td rowspan="2"> <%= $ctg =%>: </td>
+			<td rowspan="2"> <%= select_field items => [],  (id => 'items_'.$ctg, multiple => 'multiple') =%> </td>
+			<td> <%= input_tag 'additem_'+$ctg, id=> 'additem_'+$ctg+'button', type => 'button', value => '<--', onclick => '' =%> </td>
+			<% if ($ctg =~ /^inputs$/) { %>
+				<td rowspan="6"> <%= select_field available_items => $items,  (id => 'available_items', multiple => 'multiple') =%> </td>
+			<% } %>
+		</tr>
+		<tr>
+			<td> <%= input_tag 'delitem_'+$ctg, id=> 'delitem_'+$ctg+'_button', type => 'button', value => '-->', onclick => ''=%> </td>
+		</tr>
+<% } %>
+
+</table>
+
 
 @@ layouts/default.html.ep
 <!DOCTYPE html>
