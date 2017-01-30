@@ -54,15 +54,20 @@ get '/production' => sub {
 	$structures = $structures->arrays->to_array;
 	say Dumper($structures);
 
-	my $items = $pg->db->query('SELECT type_itemid FROM rules.type_item;');
-	$items = $items->arrays->to_array;
-	say Dumper($items);
+	my $available_items = $pg->db->query('SELECT type_itemid FROM rules.type_item WHERE aux_production_level>0;')->arrays->to_array;
+	say Dumper($available_items);
+
+	my $available_items = $pg->db->query('SELECT type_itemid FROM rules.type_item WHERE aux_production_level>0;')->arrays->to_array;
+	say Dumper($available_items);
+
+	my $not_produced_items = $pg->db->query('SELECT type_itemid FROM rules.type_item WHERE aux_production_level<0;')->arrays->to_array;
+	say Dumper($not_produced_items);
 
 
 # roman letters for structure levels
 	my $sl = [['I',1],['II',2]];
 
-	$c->render(template => 'production_edit', structures => $structures, structurelevels => $sl, items => $items);
+	$c->render(template => 'production_edit', structures => $structures, structurelevels => $sl, available_items => $available_items, not_produced_items => $not_produced_items);
 };
 
 
@@ -92,6 +97,11 @@ __DATA__
 % title ' Edit Production';
 
 % content
+%= stylesheet begin
+	.select_items {width:125px; height:100px;}
+	.available_items {width:125px; height:200px;}
+%= end
+
 %= javascript "//code.jquery.com/jquery-2.1.1.js"
 
 %= javascript begin
@@ -105,11 +115,29 @@ __DATA__
 			jQuery('#name').val(p.activity);
 			jQuery('#stamina').val(p.stamina);
 
-			for (var ctg in ['inputs']) {
-				console.log(ctg);
-				for (var key in p[ctg]){
-					jQuery('#items_inputs').append('<option value='+key+'>'+key+'</option>');
+			jQuery.each(['inputs','outputs'], function(i,ctg) {
+				console.log(p[ctg]);
+
+				// each item listed in this category
+				for (var item in p[ctg]){
+					console.log(p[ctg][item]);
+
+					// add item as many times as listed in DB
+					for(var i=1; i <= p[ctg][item]; i++) {
+						jQuery('#items_'+ctg).append('<option value='+item+'>'+item+'</option>');
+					};
 				};
+			});
+
+			// tools have a bit different data schema
+			for (var item in p.tools){
+				var css={};
+				if (p.tools[item]) {
+					css={'background-color':'red', 'color':'white'};
+				} else {
+					css={'background-color':'blue', 'color':'white'};
+				};
+				jQuery('#items_tools').append(jQuery('<option value='+item+'>'+item+'</option>').css(css));
 			};
 
 
@@ -118,34 +146,58 @@ __DATA__
 % end
 
 <h1>Production ID:  <%= param 'aid' =%></h1>
-Name:
-%= text_field  'Production name' => (id=>"name")
-%= input_tag 'rename', id=>'renamebutton', type => 'button', value => 'rename', onclick => ''
-<br>
-Stamina:
-%= text_field  'Stamina needed' => (id=>"stamina")
-%= input_tag 'updatestamina', id=>'updatestaminabutton', type => 'button', value => 'update stamina', onclick => ''
-<br>
-Structure:
-%= select_field structure => $structures,  (id => 'structures')
-%= select_field structurelevel => $structurelevels,  (id => 'structurelevel')
-%= input_tag 'updatestructure', id=>'updatestructurebutton', type => 'button', value => 'update structure', onclick => 'console.dir({sid:jQuery("#structures>option:selected").val(),level:jQuery("#structurelevel>option:selected").val()})'
 
-<table>
+
+<table frame="box" width='500px'>
+	<tr>
+		<td>Name:</td>
+		<td colspan="2"> <%= text_field  'Production name' => (id=>"name") =%> </td>
+		<td> <%= input_tag 'rename', id=>'renamebutton', type => 'button', value => 'rename', onclick => '' =%> </td>
+	</tr>
+	<tr>
+		<td>Stamina:</td>
+		<td colspan="2"> <%= text_field  'Stamina needed' => (id=>"stamina") =%> </td>
+		<td> <%= input_tag 'updatestamina', id=>'updatestaminabutton', type => 'button', value => 'update stamina', onclick => '' =%> </td>
+	</tr>
+	<tr>
+	<td rowspan="2">Structure:</td>
+		<td><%= select_field 'structure' => $structures,  (id => 'structures') =%> </td>
+		<td><%= select_field 'structurelevel' => $structurelevels,  (id => 'structurelevel') =%> </td>
+		<td rowspan="2"><%= input_tag 'updatestructure', id=>'updatestructurebutton', type => 'button', value => 'use this structure', onclick =>  'console.dir({sid:jQuery("#structures>option:selected").val(),level:jQuery("#structurelevel>option:selected").val()})' =%> </td>
+	</tr>
+	<tr>
+		<td colspan="2"> <%= input_tag 'createnewstructure', id=>'create_new_structure_button', type => 'button', value => 'Create a brand new structure', onclick => '' =%> </td>
+	</tr>
+</table>
+
+
+
+<table frame="box" width='500px'>
 <% foreach my $ctg ('inputs', 'tools', 'outputs') { %>
 		<tr>
 			<td rowspan="2"> <%= $ctg =%>: </td>
-			<td rowspan="2"> <%= select_field items => [],  (id => 'items_'.$ctg, multiple => 'multiple') =%> </td>
-			<td> <%= input_tag 'additem_'+$ctg, id=> 'additem_'+$ctg+'button', type => 'button', value => '<--', onclick => '' =%> </td>
+			<% if ($ctg !~ /^tools$/) { %> <td rowspan="2"> </td> <% } else { %>
+				<td> <%= input_tag 'mark_as_mandatory', id=> 'mark_as_mandatory_button', type => 'button', value => '!', onclick => '' =%> </td>
+			<% } %>
+			<td rowspan="2"> <%= select_field 'items' => [],  (id => 'items_'.$ctg, multiple => 'multiple', class => 'select_items') =%> </td>
+			<td> <%= input_tag 'additem_'.$ctg, id=> 'additem_'.$ctg.'button', type => 'button', value => '<--', onclick => '' =%> </td>
 			<% if ($ctg =~ /^inputs$/) { %>
-				<td rowspan="6"> <%= select_field available_items => $items,  (id => 'available_items', multiple => 'multiple') =%> </td>
+				<td rowspan="4"> <%= select_field 'available_items' => $available_items,  (id => 'available_items', multiple => 'multiple', class => 'available_items') =%> </td>
+			<% } elsif ($ctg =~ /^outputs$/) { %>
+				<td rowspan="2"> <%= select_field 'not_produced_items' => $not_produced_items,  (id => 'not_produced_items', multiple => 'multiple', class => 'select_items') =%> </td>
 			<% } %>
 		</tr>
 		<tr>
-			<td> <%= input_tag 'delitem_'+$ctg, id=> 'delitem_'+$ctg+'_button', type => 'button', value => '-->', onclick => ''=%> </td>
+			<% if ($ctg =~ /^tools$/) {  %>
+				<td> <%= input_tag 'mark_as_auxiliary', id=> 'mark_as_axiliary_button', type => 'button', value => 'aux', onclick => '' =%> </td>
+			<% } %>
+			<td> <%= input_tag 'delitem_'.$ctg, id=> 'delitem_'.$ctg.'_button', type => 'button', value => '-->', onclick => ''=%> </td>
 		</tr>
 <% } %>
-
+	<tr>
+		<td colspan="2"></td>
+		<td colspan="3"> <%= input_tag 'createnewitem', id=>'create_new_item_button', type => 'button', value => 'Create a brand new item', onclick => '' =%> </td>
+	</tr>
 </table>
 
 
