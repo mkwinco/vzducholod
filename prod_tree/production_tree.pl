@@ -57,9 +57,6 @@ get '/production' => sub {
 	my $available_items = $pg->db->query('SELECT type_itemid FROM rules.type_item WHERE aux_production_level>0;')->arrays->to_array;
 	say Dumper($available_items);
 
-	my $available_items = $pg->db->query('SELECT type_itemid FROM rules.type_item WHERE aux_production_level>0;')->arrays->to_array;
-	say Dumper($available_items);
-
 	my $not_produced_items = $pg->db->query('SELECT type_itemid FROM rules.type_item WHERE aux_production_level<0;')->arrays->to_array;
 	say Dumper($not_produced_items);
 
@@ -148,7 +145,7 @@ __DATA__
 <h1>Production ID:  <%= param 'aid' =%></h1>
 
 
-<table frame="box" width='500px'>
+<table frame="box" width='540px'>
 	<tr>
 		<td>Name:</td>
 		<td colspan="2"> <%= text_field  'Production name' => (id=>"name") =%> </td>
@@ -172,7 +169,7 @@ __DATA__
 
 
 
-<table frame="box" width='500px'>
+<table frame="box" width='540px'>
 <% foreach my $ctg ('inputs', 'tools', 'outputs') { %>
 		<tr>
 			<td rowspan="2"> <%= $ctg =%>: </td>
