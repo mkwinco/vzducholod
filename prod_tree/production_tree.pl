@@ -46,18 +46,18 @@ get '/production_tree' => sub {
 get '/production' => sub {
 	my $c = shift;
 
-	my $prod = $pg->db->query('SELECT * FROM rules.all_productions WHERE aid=?;',$c->param('aid'));
-	$prod = $prod->hash;
-	say Dumper($prod);
+	my $prod = $pg->db->query('SELECT * FROM rules.all_productions WHERE aid=?;',$c->param('aid'))->hash;
+	#say Dumper($prod);
 
-	my $structures = $pg->db->query('SELECT type_structure_name, type_structureid FROM rules.type_structure;');
-	$structures = $structures->arrays->to_array;
-	say Dumper($structures);
+	my $structures = $pg->db->query('SELECT type_structure_name, type_structureid FROM rules.type_structure;')->arrays->to_array;
+	#say Dumper($structures);
 
 	my $available_items = $pg->db->query('SELECT type_itemid FROM rules.type_item WHERE aux_production_level>0;')->arrays->to_array;
+	foreach (@{$available_items}) {$_=$_->[0]};
 	say Dumper($available_items);
 
 	my $not_produced_items = $pg->db->query('SELECT type_itemid FROM rules.type_item WHERE aux_production_level<0;')->arrays->to_array;
+	foreach (@{$not_produced_items}) {$_=$_->[0]};
 	say Dumper($not_produced_items);
 
 
@@ -101,6 +101,7 @@ __DATA__
 
 %= javascript "//code.jquery.com/jquery-2.1.1.js"
 
+
 %= javascript begin
 	jQuery.getJSON(
 		'/production.api',
@@ -142,6 +143,19 @@ __DATA__
 	)
 % end
 
+%= javascript begin
+function basic_updates(aid, c, v) {
+  //send post data and reload ALWAYS (not only when done)
+  console.log(aid);
+	console.dir(c);
+  console.dir(v);
+  jQuery.post('/production/basic_updates',{columns:c, values:v})
+    .always(function(){
+        location.reload();
+    });
+};
+%= end
+
 <h1>Production ID:  <%= param 'aid' =%></h1>
 
 
@@ -149,7 +163,7 @@ __DATA__
 	<tr>
 		<td>Name:</td>
 		<td colspan="2"> <%= text_field  'Production name' => (id=>"name") =%> </td>
-		<td> <%= input_tag 'rename', id=>'renamebutton', type => 'button', value => 'rename', onclick => '' =%> </td>
+		<td> <%= input_tag 'rename', id=>'renamebutton', type => 'button', value => 'rename', onclick => "basic_updates(".(param 'aid').", ['type_activity_name'], [jQuery('#name').val()] )" =%> </td>
 	</tr>
 	<tr>
 		<td>Stamina:</td>
@@ -167,9 +181,11 @@ __DATA__
 	</tr>
 </table>
 
-
+<br>
 
 <table frame="box" width='540px'>
+		<tr><td align="center" colspan="5">Items: </td></tr>
+
 <% foreach my $ctg ('inputs', 'tools', 'outputs') { %>
 		<tr>
 			<td rowspan="2"> <%= $ctg =%>: </td>
@@ -177,7 +193,7 @@ __DATA__
 				<td> <%= input_tag 'mark_as_mandatory', id=> 'mark_as_mandatory_button', type => 'button', value => '!', onclick => '' =%> </td>
 			<% } %>
 			<td rowspan="2"> <%= select_field 'items' => [],  (id => 'items_'.$ctg, multiple => 'multiple', class => 'select_items') =%> </td>
-			<td> <%= input_tag 'additem_'.$ctg, id=> 'additem_'.$ctg.'button', type => 'button', value => '<--', onclick => '' =%> </td>
+			<td align="center"> <%= input_tag 'additem_'.$ctg, id=> 'additem_'.$ctg.'button', type => 'button', value => '<--', onclick => '' =%> </td>
 			<% if ($ctg =~ /^inputs$/) { %>
 				<td rowspan="4"> <%= select_field 'available_items' => $available_items,  (id => 'available_items', multiple => 'multiple', class => 'available_items') =%> </td>
 			<% } elsif ($ctg =~ /^outputs$/) { %>
@@ -188,12 +204,13 @@ __DATA__
 			<% if ($ctg =~ /^tools$/) {  %>
 				<td> <%= input_tag 'mark_as_auxiliary', id=> 'mark_as_axiliary_button', type => 'button', value => 'aux', onclick => '' =%> </td>
 			<% } %>
-			<td> <%= input_tag 'delitem_'.$ctg, id=> 'delitem_'.$ctg.'_button', type => 'button', value => '-->', onclick => ''=%> </td>
+			<td align="center"> <%= input_tag 'delitem_'.$ctg, id=> 'delitem_'.$ctg.'_button', type => 'button', value => '-->', onclick => ''=%> </td>
 		</tr>
 <% } %>
+	<tr></tr>
 	<tr>
 		<td colspan="2"></td>
-		<td colspan="3"> <%= input_tag 'createnewitem', id=>'create_new_item_button', type => 'button', value => 'Create a brand new item', onclick => '' =%> </td>
+		<td colspan="3" align="center"> <%= input_tag 'createnewitem', id=>'create_new_item_button', type => 'button', value => 'Create a brand new item', onclick => '' =%> </td>
 	</tr>
 </table>
 
