@@ -54,19 +54,27 @@ get '/production' => sub {
 
 	my $available_items = $pg->db->query('SELECT type_itemid FROM rules.type_item WHERE aux_production_level>0;')->arrays->to_array;
 	foreach (@{$available_items}) {$_=$_->[0]};
-	say Dumper($available_items);
+	#say Dumper($available_items);
 
 	my $not_produced_items = $pg->db->query('SELECT type_itemid FROM rules.type_item WHERE aux_production_level<0;')->arrays->to_array;
 	foreach (@{$not_produced_items}) {$_=$_->[0]};
-	say Dumper($not_produced_items);
+	#say Dumper($not_produced_items);
 
 
 # roman letters for structure levels
-	my $sl = [['I',1],['II',2]];
+	my $sl = [['I',1],['II',2],['III',3],['IV',4]];
 
 	$c->render(template => 'production_edit', structures => $structures, structurelevels => $sl, available_items => $available_items, not_produced_items => $not_produced_items);
 };
 
+
+post '/production/basic_updates' => sub {
+	my $c = shift;
+
+	my $prod = $pg->db->query(qq(UPDATE rules.type_activity SET type_structureid=?, min_struct_level=?, type_activity_name=?, stamina=? WHERE type_activityid=?;),$c->param('values[type_structureid]'),$c->param('values[min_struct_level]'),$c->param('values[type_activity_name]'),$c->param('values[stamina]'),$c->param('aid'));
+
+	$c->render(json => {return_value => 0});
+};
 
 
 app->start;
@@ -144,12 +152,16 @@ __DATA__
 % end
 
 %= javascript begin
-function basic_updates(aid, c, v) {
+function basic_updates(aid) {
   //send post data and reload ALWAYS (not only when done)
-  console.log(aid);
-	console.dir(c);
-  console.dir(v);
-  jQuery.post('/production/basic_updates',{columns:c, values:v})
+  //console.log(aid);
+	var v = {
+		type_structureid:jQuery('#structures').val(),
+		min_struct_level:jQuery('#structurelevel').val(),
+		type_activity_name:jQuery('#name').val(),
+		stamina:jQuery('#stamina').val()
+	};
+  jQuery.post('/production/basic_updates',{aid:aid, values:v})
     .always(function(){
         location.reload();
     });
@@ -162,22 +174,19 @@ function basic_updates(aid, c, v) {
 <table frame="box" width='540px'>
 	<tr>
 		<td>Name:</td>
-		<td colspan="2"> <%= text_field  'Production name' => (id=>"name") =%> </td>
-		<td> <%= input_tag 'rename', id=>'renamebutton', type => 'button', value => 'rename', onclick => "basic_updates(".(param 'aid').", ['type_activity_name'], [jQuery('#name').val()] )" =%> </td>
+		<td colspan="3"> <%= text_field  'Production name' => (id=>"name") =%> </td>
+		<td rowspan="3"> <%= input_tag 'update', id=>'updatebutton', type => 'button', value => 'update', onclick => "basic_updates(".(param 'aid')." )" =%> </td>
 	</tr>
 	<tr>
 		<td>Stamina:</td>
-		<td colspan="2"> <%= text_field  'Stamina needed' => (id=>"stamina") =%> </td>
-		<td> <%= input_tag 'updatestamina', id=>'updatestaminabutton', type => 'button', value => 'update stamina', onclick => '' =%> </td>
+		<td colspan="3"> <%= text_field  'stamina ' => (id=>"stamina") =%> </td>
+
 	</tr>
 	<tr>
-	<td rowspan="2">Structure:</td>
+	<td>Structure:</td>
 		<td><%= select_field 'structure' => $structures,  (id => 'structures') =%> </td>
+		<td> <%= input_tag 'createnewstructure', id=>'create_new_structure_button', type => 'button', value => '...', onclick => "" =%> </td>
 		<td><%= select_field 'structurelevel' => $structurelevels,  (id => 'structurelevel') =%> </td>
-		<td rowspan="2"><%= input_tag 'updatestructure', id=>'updatestructurebutton', type => 'button', value => 'use this structure', onclick =>  'console.dir({sid:jQuery("#structures>option:selected").val(),level:jQuery("#structurelevel>option:selected").val()})' =%> </td>
-	</tr>
-	<tr>
-		<td colspan="2"> <%= input_tag 'createnewstructure', id=>'create_new_structure_button', type => 'button', value => 'Create a brand new structure', onclick => '' =%> </td>
 	</tr>
 </table>
 
