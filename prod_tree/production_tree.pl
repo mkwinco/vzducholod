@@ -8,10 +8,11 @@ $Data::Dumper::Sortkeys = sub { [reverse sort keys %{$_[0]}] };
 
 
 use Mojolicious::Lite;
+use Mojo::JSON qw(decode_json encode_json);
 use Mojo::Pg;
 # protocol://user:pass@host/database
 my $pg = Mojo::Pg->new('postgresql://postgres:postgres@localhost/econmod_v03');
-
+use Mojo::JSON qw(decode_json encode_json);
 
 get '/production.api' => sub {
 	my $c = shift;
@@ -28,7 +29,7 @@ get '/production.api' => sub {
 	my @out = ();
 	while (my $next = $select->hash) {push(@out,$next);}
 
-	say Dumper(\@out);
+	#say Dumper(\@out);
 
 	$c->render(json => {activities => \@out});
 
@@ -47,24 +48,34 @@ get '/production' => sub {
 	my $c = shift;
 
 	my $prod = $pg->db->query('SELECT * FROM rules.all_productions WHERE aid=?;',$c->param('aid'))->hash;
-	#say Dumper($prod);
+	foreach ('inputs','tools','outputs') { $prod->{$_} = decode_json $prod->{$_} if defined $prod->{$_}};
+	say Dumper($prod);
 
 	my $structures = $pg->db->query('SELECT type_structure_name, type_structureid FROM rules.type_structure;')->arrays->to_array;
 	#say Dumper($structures);
 
-	my $available_items = $pg->db->query('SELECT type_itemid FROM rules.type_item WHERE aux_production_level>0;')->arrays->to_array;
-	foreach (@{$available_items}) {$_=$_->[0]};
+	my $available_items = ();
+	foreach my $aitem (@{$pg->db->query('SELECT type_itemid FROM rules.type_item WHERE aux_production_level>0;')->arrays->to_array}) {
+		# use only such item, that is not output of this activity (and as such it cannot be its input)
+		push(@{$available_items}, $aitem->[0]) if (grep {$aitem->[0] ne $_} (keys %{$prod->{'outputs'}} ) ) ;
+	};
 	#say Dumper($available_items);
 
 	my $not_produced_items = $pg->db->query('SELECT type_itemid FROM rules.type_item WHERE aux_production_level<0;')->arrays->to_array;
 	foreach (@{$not_produced_items}) {$_=$_->[0]};
+	# moreover add current outputs as they are also available for this prodution as outputs
+	push(@{$not_produced_items},(keys %{$prod->{'outputs'}} ));
 	#say Dumper($not_produced_items);
 
 
 # roman letters for structure levels
-	my $sl = [['I',1],['II',2],['III',3],['IV',4]];
+	my $sl = [['I',1],['II',2],['III',3],['IV',4],['V',5],['VI',6]];
 
-	$c->render(template => 'production_edit', structures => $structures, structurelevels => $sl, available_items => $available_items, not_produced_items => $not_produced_items);
+	# all items combined
+	my @all_items = (@{$available_items},@{$not_produced_items});
+	#say Dumper(\@all_items);
+
+	$c->render(template => 'production_edit', structures => $structures, structurelevels => $sl, available_items => $available_items, not_produced_items => $not_produced_items, all_items =>  \@all_items );
 };
 
 
@@ -103,8 +114,13 @@ __DATA__
 
 % content
 %= stylesheet begin
-	.select_items {width:125px; height:100px;}
-	.available_items {width:125px; height:200px;}
+	.stamina_input {width:40px;}
+
+	.select_inputs 											{width:125px; height:100px;}
+	.all_items, .select_enhancing_tools {width:125px; height:50px;}
+	.select_mandatory_tools 						{width:125px; height:50px;}
+	.select_outputs, .items_for_output 	{width:125px; height:100px;}
+	.available_items 										{width:125px; height:150px;}
 %= end
 
 %= javascript "//code.jquery.com/jquery-2.1.1.js"
@@ -166,6 +182,32 @@ function basic_updates(aid) {
         location.reload();
     });
 };
+
+function item_updates(ut,ctg,aid) {
+	console.log(ut);
+	console.log(ctg);
+	console.log(aid);
+
+	//default je ut = "del"
+	var selector_from = '#items_'.$ctg;
+	var selector_to = '#available_for_'+ctg;
+	if (ut = "add") {
+		selector_from = '#available_for_'+ctg;
+		selector_to = '#items_'.$ctg;
+	};
+
+	// there can be multiple selections
+	jQuery(selector_from+'>option:selected').each( function(i,v){
+		console.log(v.value);
+	});
+
+	return;
+
+	jQuery.post('/production/item_updates',{update_type:ut, what:ctg, aid:aid})
+		.always(function(){
+				location.reload();
+		});
+};
 %= end
 
 <h1>Production ID:  <%= param 'aid' =%></h1>
@@ -174,12 +216,12 @@ function basic_updates(aid) {
 <table frame="box" width='540px'>
 	<tr>
 		<td>Name:</td>
-		<td colspan="3"> <%= text_field  'Production name' => (id=>"name") =%> </td>
+		<td colspan="3" align="center"> <%= text_field  'Production name' => (id=>"name") =%> </td>
 		<td rowspan="3"> <%= input_tag 'update', id=>'updatebutton', type => 'button', value => 'update', onclick => "basic_updates(".(param 'aid')." )" =%> </td>
 	</tr>
 	<tr>
 		<td>Stamina:</td>
-		<td colspan="3"> <%= text_field  'stamina ' => (id=>"stamina") =%> </td>
+		<td colspan="3" align="left"> <%= text_field  'stamina ' => (id=>"stamina", class => 'stamina_input') =%> </td>
 
 	</tr>
 	<tr>
@@ -193,34 +235,30 @@ function basic_updates(aid) {
 <br>
 
 <table frame="box" width='540px'>
-		<tr><td align="center" colspan="5">Items: </td></tr>
+		<tr><td colspan="4" align="center"> <%= input_tag 'createnewitem', id=>'create_new_item_button', type => 'button', value => 'Create a new item ...', onclick => '' =%> </td></tr>
+		<tr><td colspan="4" align="center"> ... or manage existing: </td></tr>
 
-<% foreach my $ctg ('inputs', 'tools', 'outputs') { %>
+<% foreach my $ctg ('inputs', 'mandatory_tools', 'enhancing_tools', 'outputs') { %>
 		<tr>
-			<td rowspan="2"> <%= $ctg =%>: </td>
-			<% if ($ctg !~ /^tools$/) { %> <td rowspan="2"> </td> <% } else { %>
-				<td> <%= input_tag 'mark_as_mandatory', id=> 'mark_as_mandatory_button', type => 'button', value => '!', onclick => '' =%> </td>
-			<% } %>
-			<td rowspan="2"> <%= select_field 'items' => [],  (id => 'items_'.$ctg, multiple => 'multiple', class => 'select_items') =%> </td>
-			<td align="center"> <%= input_tag 'additem_'.$ctg, id=> 'additem_'.$ctg.'button', type => 'button', value => '<--', onclick => '' =%> </td>
+			<td rowspan="1"> <%= $ctg =%>: </td>
+			<td rowspan="1"> <%= select_field 'items' => [],  (id => 'items_'.$ctg, multiple => 'multiple', class => 'select_'.$ctg) =%> </td>
+			<td align="left" valign="middle">
+				<%= input_tag 'additem_'.$ctg, id=> 'additem_'.$ctg.'_button', type => 'button', value => '<--', onclick => "item_updates(\"add\",\"$ctg\",".(param 'aid')." )" =%>
+				<br>
+ 				<%= input_tag 'delitem_'.$ctg, id=> 'delitem_'.$ctg.'_button', type => 'button', value => '-->', onclick => ''=%>
+			</td>
 			<% if ($ctg =~ /^inputs$/) { %>
-				<td rowspan="4"> <%= select_field 'available_items' => $available_items,  (id => 'available_items', multiple => 'multiple', class => 'available_items') =%> </td>
+				<td rowspan="2"> <%= select_field 'available_items' => $available_items,  (id => 'available_for_'.$ctg, multiple => 'multiple', class => 'available_items') =%> </td>
+			<% } elsif ($ctg =~ /^enhancing_tools$/) { %>
+				<td rowspan="1"> <%= select_field 'all_items' => $all_items,  (id => 'available_for_'.$ctg, multiple => 'multiple', class => 'all_items') =%> </td>
 			<% } elsif ($ctg =~ /^outputs$/) { %>
-				<td rowspan="2"> <%= select_field 'not_produced_items' => $not_produced_items,  (id => 'not_produced_items', multiple => 'multiple', class => 'select_items') =%> </td>
+				<td rowspan="1"> <%= select_field 'not_produced_items' => $not_produced_items,  (id => 'available_for_'.$ctg, multiple => 'multiple', class => 'select_outputs') =%> </td>
 			<% } %>
 		</tr>
-		<tr>
-			<% if ($ctg =~ /^tools$/) {  %>
-				<td> <%= input_tag 'mark_as_auxiliary', id=> 'mark_as_axiliary_button', type => 'button', value => 'aux', onclick => '' =%> </td>
-			<% } %>
-			<td align="center"> <%= input_tag 'delitem_'.$ctg, id=> 'delitem_'.$ctg.'_button', type => 'button', value => '-->', onclick => ''=%> </td>
-		</tr>
+
 <% } %>
-	<tr></tr>
-	<tr>
-		<td colspan="2"></td>
-		<td colspan="3" align="center"> <%= input_tag 'createnewitem', id=>'create_new_item_button', type => 'button', value => 'Create a brand new item', onclick => '' =%> </td>
-	</tr>
+
+
 </table>
 
 
