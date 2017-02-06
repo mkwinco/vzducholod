@@ -722,6 +722,20 @@ $$;
 
 ALTER FUNCTION rules.update_if_exists_items_in_activity() OWNER TO postgres;
 
+--
+-- Name: type_activityid_seq; Type: SEQUENCE; Schema: rules; Owner: postgres
+--
+
+CREATE SEQUENCE type_activityid_seq
+    START WITH 10001
+    INCREMENT BY 1
+    NO MINVALUE
+    MAXVALUE 2147483648
+    CACHE 1;
+
+
+ALTER TABLE type_activityid_seq OWNER TO postgres;
+
 SET default_tablespace = '';
 
 SET default_with_oids = false;
@@ -731,7 +745,7 @@ SET default_with_oids = false;
 --
 
 CREATE TABLE type_activity (
-    type_activityid integer NOT NULL,
+    type_activityid integer DEFAULT nextval('type_activityid_seq'::regclass) NOT NULL,
     type_structureid integer NOT NULL,
     stamina integer DEFAULT 0 NOT NULL,
     type_activity_name text,
@@ -1021,7 +1035,7 @@ ALTER TABLE type_flow_subclass OWNER TO postgres;
 CREATE TABLE type_item (
     name text,
     type_itemid text NOT NULL,
-    aux_production_level smallint
+    aux_production_level smallint DEFAULT '-1'::integer
 );
 
 
@@ -1088,11 +1102,19 @@ ALTER TABLE type_tile OWNER TO postgres;
 --
 
 COPY type_activity (type_activityid, type_structureid, stamina, type_activity_name, min_struct_level, aux_production_level) FROM stdin;
+10004	20000072	0	new production name	1	0
 6202	20000062	250	sugar production	1	0
-4201	20000042	122	flour from wheet	1	1
 6201	20000062	155	wheat production	1	0
+4201	20000042	122	flour from wheet	1	1
 4301	20000043	201	bread from flour	1	2
 \.
+
+
+--
+-- Name: type_activityid_seq; Type: SEQUENCE SET; Schema: rules; Owner: postgres
+--
+
+SELECT pg_catalog.setval('type_activityid_seq', 10004, true);
 
 
 --
@@ -1162,10 +1184,11 @@ f	MARKET	WFA
 COPY type_item (name, type_itemid, aux_production_level) FROM stdin;
 scythe	SCYTHE	-1
 kosak	KOSAK	-1
-wheat	WHEAT	1
 sugar	SUGAR	1
+wheat	WHEAT	1
 flour	FLOUR	2
 bread	BREAD	3
+butter	BUTTER	-1
 \.
 
 
@@ -1187,11 +1210,11 @@ COPY type_item_as_tool_in_activity (type_activityid, type_itemid, is_mandatory, 
 COPY type_item_in_activity (type_activityid, type_itemid, is_item_input, item_count) FROM stdin;
 4301	BREAD	f	1
 6202	SUGAR	f	1
-4201	WHEAT	t	2
 4301	SUGAR	t	1
 4301	FLOUR	t	1
 4201	FLOUR	f	1
 6201	WHEAT	f	1
+4201	WHEAT	t	2
 \.
 
 

@@ -22,6 +22,8 @@ get '/production.api' => sub {
 	if ( (defined $c->param('aid') ) && ($c->param('aid') =~ /^\d+$/ ) ) {
 		$select = $pg->db->query('SELECT * FROM rules.all_productions WHERE aid=?;',$c->param('aid'));
 	} else {
+		# well, reorganize as well
+		$pg->db->query('SELECT rules.aux_devel_productions_hierarchy();');
 		$select = $pg->db->query('SELECT * FROM rules.all_productions ORDER BY aux_production_level ASC;');
 	}
 	$select = $select->expand;
@@ -49,6 +51,11 @@ get '/production' => sub {
 	my $prod = $pg->db->query('SELECT * FROM rules.all_productions WHERE aid=?;',$c->param('aid'))->hash;
 	foreach ('inputs','tools','outputs') { $prod->{$_} = decode_json $prod->{$_} if defined $prod->{$_}};
 	#say Dumper($prod);
+	# if there is no such produciton render error
+	if (! %{$prod}) {
+		$c->render(inline => 'No such production');
+		return;
+	};
 
 	# create arrays for selections
 	my $items = ();
@@ -62,7 +69,7 @@ get '/production' => sub {
 	}
 	#say Dumper($items);
 
-	my $structures = $pg->db->query('SELECT type_structure_name, type_structureid FROM rules.type_structure;')->arrays->to_array;
+	my $structures = $pg->db->query(qq(SELECT type_structure_name, type_structureid FROM rules.type_structure WHERE type_structure_classid ~* ? ;),'PS-WS|WF')->arrays->to_array;
 	#say Dumper($structures);
 
 	my $allitems = ();
@@ -78,6 +85,15 @@ get '/production' => sub {
 	$c->render(template => 'production_edit', prod => $prod, items=>$items, structures => $structures, structurelevels => $sl, allitems => $allitems, arrows => {'add' => '<--', 'del' => '-->'} );
 };
 
+
+post '/production/new' => sub {
+	my $c = shift;
+	#say Dumper($c->req->params->to_hash);
+
+	$pg->db->query(qq(INSERT INTO rules.type_activity(type_structureid, stamina, type_activity_name) VALUES ((SELECT max(type_structureid) FROM rules.type_structure),?,?);),0, $c->param('type_activity_name') );
+
+	$c->redirect_to('/production_tree');
+};
 
 post '/production/basic_updates' => sub {
 	my $c = shift;
@@ -115,8 +131,16 @@ post '/production/item_updates' => sub {
 
 	};
 
-
 	$c->render(json => {return_value => 0});
+};
+
+post '/item/new' => sub {
+	my $c = shift;
+	say Dumper($c->req->params->to_hash);
+
+	$pg->db->query(qq(INSERT INTO rules.type_item(name, type_itemid) VALUES (?, ?);),lc $c->param('type_itemid'), $c->param('type_itemid') );
+
+	$c->redirect_to($c->req->headers->referrer);
 };
 
 app->start;
@@ -136,7 +160,14 @@ __DATA__
 	refresh();
 % end
 
+%= form_for '/production/new' => (method => 'post') => begin
+	<%= text_field 'type_activity_name', value => 'new production name' %>
+	%= submit_button 'New Production'
+%= end
+
 <h1>Production tree overview</h1>
+
+
 
 
 @@ production_edit.html.ep
@@ -222,8 +253,13 @@ function item_updates(ut,ctg,aid) {
 <br>
 
 <table frame="box" width='540px'>
-		<tr><td colspan="4" align="center"> <%= input_tag 'createnewitem', id=>'create_new_item_button', type => 'button', value => 'Create a new item ...', onclick => '' =%> </td></tr>
-		<tr><td colspan="4" align="center"> ... or manage existing: </td></tr>
+	<tr><td colspan="4" align="center">
+		%= form_for '/item/new' => (method => 'post') => begin
+			<%= text_field 'type_itemid', value => 'NEWITEM' , id=>'create_new_item_button' %>
+			<%= submit_button 'Create a new item ...' %>
+		%= end
+	</td></tr>
+	<tr><td colspan="4" align="center"> ... or manage existing: </td></tr>
 
 <% foreach my $ctg ('inputs', 'mandatory_tools', 'enhancing_tools', 'outputs') { %>
 		<tr>
@@ -253,6 +289,10 @@ function item_updates(ut,ctg,aid) {
 @@ layouts/default.html.ep
 <!DOCTYPE html>
 <html>
-  <head><title><%= title %></title></head>
+  <head>
+		<link href="favicon.ico" rel="icon" type="image/x-icon" />
+		<title><%= title %></title>
+	</head>
+
   <body><%= content %></body>
 </html>
