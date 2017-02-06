@@ -321,6 +321,14 @@ RAISE NOTICE 'These output items are getting level %: %', l+1, (SELECT type_item
 
 	END LOOP;
 
+	-- actually to have it nice, some cosmetics is needed (in case there is NULL in aux_production_level)
+	IF (SELECT 1 FROM rules.type_activity WHERE aux_production_level IS NULL) THEN 
+		-- first replace NULLs with -1
+		UPDATE rules.type_activity SET aux_production_level=-1 WHERE aux_production_level IS NULL;
+		-- and second - shift all production levels one up (to match with items and GUI)
+		UPDATE rules.type_activity SET aux_production_level=aux_production_level+1;
+	END IF;
+
 	-- this is just for information whether there are any items left which cannot be produced (and how many)
 	RETURN (SELECT count(aux_production_level) AS type_items_to_resolve FROM rules.type_item WHERE aux_production_level = -1);
 	
@@ -603,6 +611,55 @@ $$;
 ALTER FUNCTION rules.is_correct_type_flow(type_beg integer, type_end integer, tfid text) OWNER TO postgres;
 
 --
+-- Name: prevent_duplicate_insert_of_the_same_tool(); Type: FUNCTION; Schema: rules; Owner: postgres
+--
+
+CREATE FUNCTION prevent_duplicate_insert_of_the_same_tool() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+		itia 	rules.type_item_as_tool_in_activity%ROWTYPE;
+BEGIN
+	-- Is there such record already?
+	SELECT * INTO itia FROM rules.type_item_as_tool_in_activity WHERE type_activityid=NEW.type_activityid and type_itemid=NEW.type_itemid;
+
+	-- If there is item for activity, do not insert new, just update existing
+	IF (itia IS NOT NULL) THEN 
+		UPDATE rules.type_item_as_tool_in_activity SET is_mandatory=NEW.is_mandatory WHERE type_activityid=NEW.type_activityid and type_itemid=NEW.type_itemid;
+		RETURN NULL;
+	END IF;
+	
+	RETURN NEW;	
+
+END;
+$$;
+
+
+ALTER FUNCTION rules.prevent_duplicate_insert_of_the_same_tool() OWNER TO postgres;
+
+--
+-- Name: remove_zero_items_in_activity(); Type: FUNCTION; Schema: rules; Owner: postgres
+--
+
+CREATE FUNCTION remove_zero_items_in_activity() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+BEGIN
+	-- If the number of items for given activity is zero, then the line is useless
+	IF (NEW.item_count<1) THEN
+		DELETE FROM rules.type_item_in_activity WHERE type_itemid=NEW.type_itemid AND type_activityid=NEW.type_activityid;
+		RETURN NULL;
+	END IF;
+	
+	RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION rules.remove_zero_items_in_activity() OWNER TO postgres;
+
+--
 -- Name: settle_bh(name, integer, integer); Type: FUNCTION; Schema: rules; Owner: postgres
 --
 
@@ -637,6 +694,33 @@ $$;
 
 
 ALTER FUNCTION rules.settle_bh(sch name, bhid integer, sid integer) OWNER TO postgres;
+
+--
+-- Name: update_if_exists_items_in_activity(); Type: FUNCTION; Schema: rules; Owner: postgres
+--
+
+CREATE FUNCTION update_if_exists_items_in_activity() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+	iia 	rules.type_item_in_activity%ROWTYPE;
+BEGIN
+	-- Is there such record already?
+	SELECT * INTO iia FROM rules.type_item_in_activity WHERE type_activityid=NEW.type_activityid AND type_itemid=NEW.type_itemid AND is_item_input=NEW.is_item_input;
+	
+	-- If there is item for activity, do not insert new, just update existing
+	IF (iia IS NOT NULL) THEN 
+		UPDATE rules.type_item_in_activity SET item_count=item_count+NEW.item_count WHERE type_activityid=NEW.type_activityid AND type_itemid=NEW.type_itemid;
+		RETURN NULL;
+	END IF;
+	
+	RETURN NEW;
+
+END;
+$$;
+
+
+ALTER FUNCTION rules.update_if_exists_items_in_activity() OWNER TO postgres;
 
 SET default_tablespace = '';
 
@@ -1004,10 +1088,10 @@ ALTER TABLE type_tile OWNER TO postgres;
 --
 
 COPY type_activity (type_activityid, type_structureid, stamina, type_activity_name, min_struct_level, aux_production_level) FROM stdin;
-6201	20000062	155	wheat production	8	0
 6202	20000062	250	sugar production	1	0
 4201	20000042	122	flour from wheet	1	1
-4301	20000043	201	bread from flour	9	2
+6201	20000062	155	wheat production	1	0
+4301	20000043	201	bread from flour	1	2
 \.
 
 
@@ -1090,8 +1174,9 @@ bread	BREAD	3
 --
 
 COPY type_item_as_tool_in_activity (type_activityid, type_itemid, is_mandatory, multiplicator_presence, multiplicator_level, durability) FROM stdin;
-6201	KOSAK	f	2	1.10000002	1000000
-6201	SCYTHE	f	3	1.29999995	1000000
+6201	KOSAK	f	1	1	0
+6202	KOSAK	f	1	1	0
+6202	SCYTHE	f	1	1	0
 \.
 
 
@@ -1100,13 +1185,13 @@ COPY type_item_as_tool_in_activity (type_activityid, type_itemid, is_mandatory, 
 --
 
 COPY type_item_in_activity (type_activityid, type_itemid, is_item_input, item_count) FROM stdin;
-6201	WHEAT	f	1
-4201	WHEAT	t	1
-4201	FLOUR	f	1
-4301	FLOUR	t	1
 4301	BREAD	f	1
-4301	SUGAR	t	1
 6202	SUGAR	f	1
+4201	WHEAT	t	2
+4301	SUGAR	t	1
+4301	FLOUR	t	1
+4201	FLOUR	f	1
+6201	WHEAT	f	1
 \.
 
 
@@ -1276,6 +1361,27 @@ ALTER TABLE ONLY type_structures_allowed_on_type_tiles
 
 ALTER TABLE ONLY type_tile
     ADD CONSTRAINT type_tile_pkey PRIMARY KEY (type_tileid);
+
+
+--
+-- Name: type_item_as_tool_in_activity prevent_duplicate_insert_of_the_same_tool; Type: TRIGGER; Schema: rules; Owner: postgres
+--
+
+CREATE TRIGGER prevent_duplicate_insert_of_the_same_tool BEFORE INSERT ON type_item_as_tool_in_activity FOR EACH ROW EXECUTE PROCEDURE prevent_duplicate_insert_of_the_same_tool();
+
+
+--
+-- Name: type_item_in_activity remove_zero_items_in_activity; Type: TRIGGER; Schema: rules; Owner: postgres
+--
+
+CREATE TRIGGER remove_zero_items_in_activity BEFORE UPDATE ON type_item_in_activity FOR EACH ROW EXECUTE PROCEDURE remove_zero_items_in_activity();
+
+
+--
+-- Name: type_item_in_activity update_if_exists_items_in_activity; Type: TRIGGER; Schema: rules; Owner: postgres
+--
+
+CREATE TRIGGER update_if_exists_items_in_activity BEFORE INSERT ON type_item_in_activity FOR EACH ROW EXECUTE PROCEDURE update_if_exists_items_in_activity();
 
 
 --

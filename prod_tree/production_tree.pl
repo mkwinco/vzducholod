@@ -12,14 +12,14 @@ use Mojo::JSON qw(decode_json encode_json);
 use Mojo::Pg;
 # protocol://user:pass@host/database
 my $pg = Mojo::Pg->new('postgresql://postgres:postgres@localhost/econmod_v03');
-use Mojo::JSON qw(decode_json encode_json);
+
 
 get '/production.api' => sub {
 	my $c = shift;
 
 	# if aid in parameters, then search just the given production, otherwise return all productions
 	my $select = ();
-	if ($c->param('aid') =~ /^\d+$/ ) {
+	if ( (defined $c->param('aid') ) && ($c->param('aid') =~ /^\d+$/ ) ) {
 		$select = $pg->db->query('SELECT * FROM rules.all_productions WHERE aid=?;',$c->param('aid'));
 	} else {
 		$select = $pg->db->query('SELECT * FROM rules.all_productions ORDER BY aux_production_level ASC;');
@@ -28,7 +28,6 @@ get '/production.api' => sub {
 
 	my @out = ();
 	while (my $next = $select->hash) {push(@out,$next);}
-
 	#say Dumper(\@out);
 
 	$c->render(json => {activities => \@out});
@@ -49,7 +48,7 @@ get '/production' => sub {
 
 	my $prod = $pg->db->query('SELECT * FROM rules.all_productions WHERE aid=?;',$c->param('aid'))->hash;
 	foreach ('inputs','tools','outputs') { $prod->{$_} = decode_json $prod->{$_} if defined $prod->{$_}};
-	say Dumper($prod);
+	#say Dumper($prod);
 
 	# create arrays for selections
 	my $items = ();
@@ -61,40 +60,28 @@ get '/production' => sub {
 	foreach (keys %{$prod->{'tools'}}) {
 		if ($prod->{'tools'}->{$_}) {push(@{$items->{'mandatory_tools'}},$_)} else {push(@{$items->{'enhancing_tools'}},$_)};
 	}
-	say Dumper($items);
+	#say Dumper($items);
 
 	my $structures = $pg->db->query('SELECT type_structure_name, type_structureid FROM rules.type_structure;')->arrays->to_array;
 	#say Dumper($structures);
 
-	my $available_items = ();
-	foreach my $aitem (@{$pg->db->query('SELECT type_itemid FROM rules.type_item WHERE aux_production_level>0;')->arrays->to_array}) {
-		# use only such item, that is not output of this activity (and as such it cannot be its input)
-		push(@{$available_items}, $aitem->[0]) if (grep {$aitem->[0] ne $_} (keys %{$prod->{'outputs'}} ) ) ;
+	my $allitems = ();
+	foreach (@{$pg->db->query('SELECT type_itemid,aux_production_level FROM rules.type_item;')->hashes->to_array}) {
+		$allitems->{$_->{'type_itemid'}} = $_->{'aux_production_level'};
 	};
-	#say Dumper($available_items);
-
-	my $not_produced_items = $pg->db->query('SELECT type_itemid FROM rules.type_item WHERE aux_production_level<0;')->arrays->to_array;
-	foreach (@{$not_produced_items}) {$_=$_->[0]};
-	# moreover add current outputs as they are also available for this prodution as outputs
-	push(@{$not_produced_items},(keys %{$prod->{'outputs'}} ));
-	#say Dumper($not_produced_items);
-
+	#say Dumper($allitems);
 
 # roman letters for structure levels
-	my $sl = [['I',1],['II',2],['III',3],['IV',4],['V',5],['VI',6]];
+	my $sl = [['I',1],['II',2],['III',3],['IV',4],['V',5],['VI',6],['VII',7],['VIII',8],['IX',9],['X',10],['XI',11],['XII',12]];
 
-	# all items combined
-	my @all_items = (@{$available_items},@{$not_produced_items});
-	#say Dumper(\@all_items);
 
-	$c->render(template => 'production_edit', prod => $prod, items=>$items, structures => $structures, structurelevels => $sl, available_items => $available_items, not_produced_items => $not_produced_items, all_items =>  \@all_items, arrows => {'add' => '<--', 'del' => '-->'} );
+	$c->render(template => 'production_edit', prod => $prod, items=>$items, structures => $structures, structurelevels => $sl, allitems => $allitems, arrows => {'add' => '<--', 'del' => '-->'} );
 };
 
 
 post '/production/basic_updates' => sub {
 	my $c = shift;
-
-	say Dumper($c->req->params->to_hash);
+	#say Dumper($c->req->params->to_hash);
 
 	my $prod = $pg->db->query(qq(UPDATE rules.type_activity SET type_structureid=?, min_struct_level=?, type_activity_name=?, stamina=? WHERE type_activityid=?;),$c->param('values[type_structureid]'),$c->param('values[min_struct_level]'),$c->param('values[type_activity_name]'),$c->param('values[stamina]'),$c->param('aid'));
 
@@ -104,21 +91,30 @@ post '/production/basic_updates' => sub {
 
 post '/production/item_updates' => sub {
 	my $c = shift;
+	#say Dumper($c->req->params->to_hash);
 
-	say Dumper($c->req->params->to_hash);
+	my $update = ();
 
-	# tools does not work yet
+	# updating outputs and inputs
+	if ($c->param('what') =~ /^(in|out)puts$/) {
 
-	my $is_item_input = qq();
-	$is_item_input =  qq(TRUE) if ($c->param('what') eq 'inputs');
-	$is_item_input =  qq(FALSE) if ($c->param('what') eq 'outputs');
+		my $is_item_input = ($c->param('what') eq 'inputs') ? '1' : '0';
 
-	my $query = qq();
-	$query = qq(INSERT INTO rules.type_item_in_activity(type_activityid, type_itemid, is_item_input, item_count) VALUES (?,?,?,?);) if ($c->param('update_type') eq "add");
-	$query = qq(UPDATE rules.type_item_in_activity SET item_count=item_count-1 WHERE type_activityid=? AND type_itemid=? AND is_item_input=? AND 1=?;) if ($c->param('update_type') eq "del");
+		my $query = qq();
+		$query = qq(INSERT INTO rules.type_item_in_activity(type_activityid, type_itemid, is_item_input, item_count) VALUES (?,?,?,?);) if ($c->param('update_type') eq "add");
+		$query = qq(UPDATE rules.type_item_in_activity SET item_count=item_count-1 WHERE type_activityid=? AND type_itemid=? AND is_item_input=? AND 1=?;) if ($c->param('update_type') eq "del");
 
+		$update = $pg->db->query($query,$c->param('aid'),$c->param('item'),$is_item_input,1);
 
-	my $update = $pg->db->query($query,$c->param('aid'),$c->param('item'),$is_item_input,1);
+	# updating tools
+	} elsif ($c->param('what') =~ /^(mandatory|enhancing)_tools$/) {
+
+		my $is_mandatory = ($c->param('what') =~ /^mandatory/) ? '1' : '0';
+		$update = $pg->db->query(qq(INSERT INTO rules.type_item_as_tool_in_activity (type_activityid, type_itemid, is_mandatory) VALUES (?, ?, ?); ),$c->param('aid'),$c->param('item'), $is_mandatory) if ($c->param('update_type') eq "add");
+		$update = $pg->db->query(qq(DELETE FROM rules.type_item_as_tool_in_activity WHERE type_activityid=? AND type_itemid=?;),$c->param('aid'),$c->param('item')) if ($c->param('update_type') eq "del");
+
+	};
+
 
 	$c->render(json => {return_value => 0});
 };
@@ -182,8 +178,11 @@ function item_updates(ut,ctg,aid) {
 
 	var source = {add:"#available_for_", del:"#items_"}
 
+	// when selecting mandatory_tools, source element is the same as inputs'
+	var ctgs = ((ctg == 'mandatory_tools') && (ut == 'add')) ? 'inputs' : ctg;
+
 	// there can be multiple selections, so let's do them in array
-	jQuery(source[ut]+ctg+'>option:selected').each( function(i,v){
+	jQuery(source[ut]+ctgs+'>option:selected').each( function(i,v){
 		console.log(v.value);
 
 		jQuery.post('/production/item_updates',{update_type:ut, what:ctg, item:v.value, aid:aid})
@@ -237,11 +236,11 @@ function item_updates(ut,ctg,aid) {
 				<% } %>
 			</td>
 			<% if ($ctg =~ /^inputs$/) { %>
-				<td rowspan="2"> <%= select_field 'available_items' => $available_items,  (id => 'available_for_'.$ctg, multiple => 'multiple', class => 'available_items') =%> </td>
+				<td rowspan="2"> <%= select_field 'available_items' => [sort grep {$allitems->{$_}>0} keys %{$allitems}],  (id => 'available_for_'.$ctg, multiple => 'multiple', class => 'available_items') =%> </td>
 			<% } elsif ($ctg =~ /^enhancing_tools$/) { %>
-				<td rowspan="1"> <%= select_field 'all_items' => $all_items,  (id => 'available_for_'.$ctg, multiple => 'multiple', class => 'all_items') =%> </td>
+				<td rowspan="1"> <%= select_field 'all_items' => [sort keys %{$allitems}],  (id => 'available_for_'.$ctg, multiple => 'multiple', class => 'all_items') =%> </td>
 			<% } elsif ($ctg =~ /^outputs$/) { %>
-				<td rowspan="1"> <%= select_field 'not_produced_items' => $not_produced_items,  (id => 'available_for_'.$ctg, multiple => 'multiple', class => 'select_outputs') =%> </td>
+				<td rowspan="1"> <%= select_field 'not_produced_items' => [sort grep {$allitems->{$_}<0} keys %{$allitems}],  (id => 'available_for_'.$ctg, multiple => 'multiple', class => 'select_outputs') =%> </td>
 			<% } %>
 		</tr>
 
