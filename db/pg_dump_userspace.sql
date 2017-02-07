@@ -15,26 +15,6 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- Name: econmod_v03; Type: DATABASE; Schema: -; Owner: postgres
---
-
-CREATE DATABASE econmod_v03 WITH TEMPLATE = template0 ENCODING = 'UTF8' LC_COLLATE = 'C' LC_CTYPE = 'C';
-
-
-ALTER DATABASE econmod_v03 OWNER TO postgres;
-
-\connect econmod_v03
-
-SET statement_timeout = 0;
-SET lock_timeout = 0;
-SET idle_in_transaction_session_timeout = 0;
-SET client_encoding = 'UTF8';
-SET standard_conforming_strings = on;
-SET check_function_bodies = false;
-SET client_min_messages = warning;
-SET row_security = off;
-
---
 -- Name: u_simple1; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -42,43 +22,6 @@ CREATE SCHEMA u_simple1;
 
 
 ALTER SCHEMA u_simple1 OWNER TO postgres;
-
---
--- Name: plperl; Type: PROCEDURAL LANGUAGE; Schema: -; Owner: postgres
---
-
-CREATE OR REPLACE PROCEDURAL LANGUAGE plperl;
-
-
-ALTER PROCEDURAL LANGUAGE plperl OWNER TO postgres;
-
---
--- Name: plpgsql; Type: EXTENSION; Schema: -; Owner: 
---
-
-CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
-
-
---
--- Name: EXTENSION plpgsql; Type: COMMENT; Schema: -; Owner: 
---
-
-COMMENT ON EXTENSION plpgsql IS 'PL/pgSQL procedural language';
-
-
---
--- Name: adminpack; Type: EXTENSION; Schema: -; Owner: 
---
-
-CREATE EXTENSION IF NOT EXISTS adminpack WITH SCHEMA pg_catalog;
-
-
---
--- Name: EXTENSION adminpack; Type: COMMENT; Schema: -; Owner: 
---
-
-COMMENT ON EXTENSION adminpack IS 'administrative functions for PostgreSQL';
-
 
 SET search_path = u_simple1, pg_catalog;
 
