@@ -99,10 +99,10 @@ CREATE FUNCTION schemaexists(sch name) RETURNS boolean
     LANGUAGE sql
     AS $$
 
--- faster way
+-- faster way 
 SELECT EXISTS(SELECT 1 FROM pg_namespace WHERE nspname = sch);
 
--- purist way
+-- purist way 
 -- SELECT EXISTS(SELECT 1 FROM information_schema.schemata WHERE schema_name = sch);
 
 $$;
@@ -139,7 +139,7 @@ BEGIN
 	-- Check whether the present structure can have activity taid (this is a negative check)
 	IF (s.type_structureID NOT IN (SELECT starting_type_structureID FROM rules.type_activities_on_type_structure WHERE type_activityID=taid)) THEN
 		RETURN FALSE;
-	END IF;
+	END IF;	
 
 
 	-- if taid activity is structure upgrade, then ....
@@ -147,13 +147,13 @@ BEGIN
 	-- REPLACE the structure, using its own ids with construction site, i.e. the original structure is NOT removed just re-typed
 		UPDATE structure SET type_structureID=(SELECT type_structureID FROM rules.type_structure WHERE type_structure_name='CONSTRUCTION_SITE' LIMIT 1) WHERE type_structureID=sid; -- + remove items from structure, rename, etc....
 	END IF;
-
+	
 
 	-- the _activity_ table should be updated here
 	UPDATE activity SET type_activityID=taid WHERE structureID=sid;
-	-- note, that the activity is currently assigned to a CONSTRUCTION SITE type structure and the check at
+	-- note, that the activity is currently assigned to a CONSTRUCTION SITE type structure and the check at 
 	-- type_activities_on_type_structure was about the original structure
-
+	
 
 	return true;
 END;
@@ -202,7 +202,7 @@ RAISE NOTICE 'Array length is %',tiles;
 	IF ( (SELECT count(*)::int FROM t) != tiles) THEN RETURN FALSE; END IF;
 
 -------------------------------------
--- check integrity of path (tileids[])
+-- check integrity of path (tileids[]) 
 -- whether the tiles are roads or empty and passable
 -- and calculate length for correct paths
 	l:=0;
@@ -210,26 +210,26 @@ RAISE NOTICE 'Array length is %',tiles;
 --RAISE NOTICE 'looping tid: % ' ,tid;
 
 		-- neighbouring tiles? (skip check for the first tile in array)
-		IF (prevtid IS NOT NULL) THEN IF ( rules.distance(sch,tid,prevtid)!=1 ) THEN
+		IF (prevtid IS NOT NULL) THEN IF ( rules.distance(sch,tid,prevtid)!=1 ) THEN 
 			RAISE NOTICE 'Tiles % and % are not exactly neighbours', prevtid,tid;
-			RETURN FALSE;
+			RETURN FALSE; 
 		END IF; END IF;
 
 
 		-- tu niekde by sa dal zakomponovat fakt, ze sikmy pohyb je odmocnica z 2 krat rychlejsi ako rovny - ale zatial to tam nie je
-
+		
 		-- if it is not the first or last element, then check for road or passability and calculate flow length
-		IF (tileIDs[1]!=tid) AND (tileIDs[tiles]!=tid) THEN
+		IF (tileIDs[1]!=tid) AND (tileIDs[tiles]!=tid) THEN 
 			SELECT movement_multiplicator INTO mm FROM t WHERE tileID=tid;
-			IF (mm IS NULL) OR (mm=0) THEN
+			IF (mm IS NULL) OR (mm=0) THEN 
 				RAISE NOTICE 'Impassable terrain at tile %',tid;
 				RETURN FALSE;
 			END IF;
 
 			l:=l+1./mm;  -- longing for an exponential rule here... :(
 		END IF;
-
-	prevtid:=tid;
+	
+	prevtid:=tid; 
 	END LOOP;
 
 RAISE NOTICE 'Length: % ' ,l;
@@ -238,18 +238,18 @@ RAISE NOTICE 'Length: % ' ,l;
 -- check existence of endpoints
 
 	-- is there a structure?
-	IF ((SELECT structureID FROM t WHERE tileID=tileIDs[1]) IS NULL OR (SELECT structureID FROM t WHERE tileID=tileIDs[tiles]) IS NULL ) THEN
+	IF ((SELECT structureID FROM t WHERE tileID=tileIDs[1]) IS NULL OR (SELECT structureID FROM t WHERE tileID=tileIDs[tiles]) IS NULL ) THEN 
 		RAISE NOTICE 'Missing structure at the end or beginning! ';
 		RETURN FALSE;
 	END IF;
-
+	
 	-- structure info is always nice to have
 	SELECT * INTO structure_beginning FROM structure WHERE structureID=(SELECT structureID FROM t WHERE tileID=tileIDs[1]);
 	SELECT * INTO structure_end FROM structure WHERE structureID=(SELECT structureID FROM t WHERE tileID=tileIDs[tiles]);
 
 -------------------------
 -- and whether they correspond to a type_flow
--- if they do ==> identify the type_flow
+-- if they do ==> identify the type_flow 
 -- we hiddent that into separate function returning ID of the flow_type
 	tf:=rules.identify_type_flow(structure_beginning.type_structureID,structure_end.type_structureID,(bhid IS NOT NULL));
 
@@ -264,7 +264,7 @@ RAISE NOTICE 'Length: % ' ,l;
 		RETURN FALSE;
 	END IF;
 
-
+	
 	-- House can be served only by one market
 	IF (tf ~ 'HS') AND (SELECT flowID FROM flow WHERE end_structureID=structure_end.structureID) IS NOT NULL THEN
 
@@ -283,7 +283,7 @@ RAISE NOTICE 'Length: % ' ,l;
 		RAISE NOTICE 'Remove existing RF assignement on workfield % first!',structure_end.structureID;
 		RETURN FALSE;
 	END IF;
-
+	
 
 	-- There can be only one IF between given two structures
 	IF (tf ~ 'IF') AND (SELECT flowID FROM flow WHERE end_structureID=structure_end.structureID AND  structure_beginning=structure_beginning.structureID) IS NOT NULL THEN
@@ -292,7 +292,7 @@ RAISE NOTICE 'Length: % ' ,l;
 		-- we will stop here and ask player to remove the old IF first
 		RAISE NOTICE 'Duplicit IF between % and % !',structure_beginning.structureID, structure_end.structureID;
 		RETURN FALSE;
-	END IF;
+	END IF;	
 
 
 	-- one good news, no need to check for market supply flow, as there is no limit on that - so far
@@ -343,7 +343,7 @@ BEGIN
 	-- start looping throuch all levels (first is l=0)
 	l=-1;
 	loop
-		level_exists = FALSE;
+		level_exists = FALSE;	
 		l=l+1;
 		RAISE NOTICE '===================== Level % ===================',l;
 
@@ -353,7 +353,7 @@ BEGIN
 			-- if maximum level of input items is not exactly current level "l", then take next action
 			-- (if there are no inputs  => the selection result is NULL, which is turned by coalsece into 0)
 			-- (if there are only inputs with -1 (minapl<0) => the items production was not yet organized AND level will never match)
-			SELECT COALESCE(max(aux_production_level),0),COALESCE(min(aux_production_level),0)  INTO maxapl,minapl FROM ( ( (SELECT type_itemid FROM json_object_keys(a.inputs) AS type_itemid) UNION (SELECT key AS type_itemid FROM json_each_text(a.tools) AS type_itemid WHERE value='true') ) AS inps JOIN rules.type_item USING (type_itemid) ) AS i;
+			SELECT COALESCE(max(aux_production_level),0),COALESCE(min(aux_production_level),0)  INTO maxapl,minapl FROM ( ( (SELECT type_itemid FROM json_object_keys(a.inputs) AS type_itemid) UNION (SELECT key AS type_itemid FROM json_each_text(a.tools) AS type_itemid WHERE value='true') ) AS inps JOIN rules.type_item USING (type_itemid) ) AS i;	 
 
 RAISE NOTICE ' ------------ Level: %  :: Prodution % with level % and current (max,min) input level: (%,%) -----------',l,a.aid,a.aux_production_level,maxapl,minapl;
 RAISE NOTICE 'inputs: %',a.inputs::text;
@@ -370,7 +370,7 @@ RAISE NOTICE 'These output items are getting level %: %', l+1, (SELECT type_item
 			-- and confirm that there were at least one activity on this level (if there were none, the loop should finish)
 			level_exists = true;
 
-		-- go to check another activity
+		-- go to check another activity	
 		END LOOP;
 
 		-- now just check whether to continue with next level
@@ -379,7 +379,7 @@ RAISE NOTICE 'These output items are getting level %: %', l+1, (SELECT type_item
 	END LOOP;
 
 	-- actually to have it nice, some cosmetics is needed (in case there is NULL in aux_production_level)
-	IF (SELECT 1 FROM rules.type_activity WHERE aux_production_level IS NULL) THEN
+	IF (SELECT 1 FROM rules.type_activity WHERE aux_production_level IS NULL) THEN 
 		-- first replace NULLs with -1
 		UPDATE rules.type_activity SET aux_production_level=-1 WHERE aux_production_level IS NULL;
 		-- and second - shift all production levels one up (to match with items and GUI)
@@ -388,8 +388,8 @@ RAISE NOTICE 'These output items are getting level %: %', l+1, (SELECT type_item
 
 	-- this is just for information whether there are any items left which cannot be produced (and how many)
 	RETURN (SELECT count(aux_production_level) AS type_items_to_resolve FROM rules.type_item WHERE aux_production_level = -1);
-
-
+	
+	
 
 END;
 $$;
@@ -431,15 +431,15 @@ BEGIN
 	-- now the sizes must fit and tnum == xsize * ysize - ALL tiles inside rectangle must be from the input array tileids
 	IF (tnum <> area) THEN RETURN FALSE; END IF;
 	-- now compare the area and radii against allowed values for the type (NULL values behaviour questionable)
-	IF NOT ( (area BETWEEN st.area_min AND st.area_max) AND (xplusy between st.xplusy_min and st.xplusy_max) ) THEN
+	IF NOT ( (area BETWEEN st.area_min AND st.area_max) AND (xplusy between st.xplusy_min and st.xplusy_max) ) THEN 
 		-- not in allowed type structure size range
 		return FALSE;
 	END IF;
-
+	
 
 -- check whether the tiles are free and eligible for construction
 	-- are all tiles empty? (all new structures require empty ground)
-	IF NOT (SELECT EXISTS(SELECT 1 FROM t WHERE structureID IS NOT NULL LIMIT 1)) THEN
+	IF NOT (SELECT EXISTS(SELECT 1 FROM t WHERE structureID IS NOT NULL LIMIT 1)) THEN 
 		return FALSE;
 	END IF;
 	-- and allowing this type of construction?
@@ -447,7 +447,7 @@ BEGIN
 	IF (SELECT EXISTS(SELECT 1 FROM t WHERE type_tileID NOT IN (SELECT type_tileID FROM rules.type_structures_allowed_on_type_tiles WHERE type_structureID=tsid))) THEN
 		RETURN FALSE;
 	END IF;
-
+	
 -- UP TO HERE, THE CODE IS VIRTUALY THE SAME FOR CONSTRUCTION OF A HIGHER LEVEL STRUCTURE - I.E. FIRST PLACING THE CONSTRUCTION SITE, THEN ASSIGNING THE APPROPRIATE ACTIVITY
 -- So the good start is then to identify whether this is a lvl0 or higher.
 -- Let's take a look into type_activity_progress and check for the final product being our type_structure. If the structure is built after 0 stamina spent, then we are here....
@@ -476,7 +476,7 @@ CREATE FUNCTION create_random_map(sch name, xright integer, xleft integer, yrigh
 DECLARE
 	r real;
 	t int;
-BEGIN
+BEGIN 
 
 if NOT (SELECT * FROM general.schemaexists(sch)) THEN return 0; END if;
 EXECUTE 'SET search_path TO ' ||  sch;
@@ -492,7 +492,7 @@ FOR x IN xright..xleft LOOP
 		END IF;
 
 		EXECUTE 'INSERT INTO ' || sch || '.tile(x,y,type_tileID) VALUES ($2,$3,$4)' USING sch,x,y,t;
-
+		
 	END LOOP;
 END LOOP;
 
@@ -525,21 +525,21 @@ for (my $x = -$xm; $x <= $xp; $x++) {
 
 		my $random_number = rand(20);
 		my $type = "";
-		if ($random_number < 1) {$type = "'RCK'";}
+		if ($random_number < 1) {$type = "'RCK'";} 
 		elsif ($random_number < 2) {$type = "'RCK'";}
 		elsif ($random_number < 4) {$type = "'RCK'";}
 		elsif ($random_number < 5) {$type = "'RCK'";}
 		elsif ($random_number < 6) {$type = "'RCK'";}
 		else {$type = "'PLA'";};
-
+		
 		my $add = "( $x,$y,$type)";
 
-		if ($values eq "") {
+		if ($values eq "") { 
 			$values = $add;
 		} else {
 			$values = $values.", ".$add;
 		};
-
+		
 
 	};
 };
@@ -566,7 +566,7 @@ CREATE FUNCTION distance(sch name, aid integer, bid integer) RETURNS integer
     LANGUAGE plpgsql
     AS $$
 
-DECLARE
+DECLARE 
 	a u_simple1.tile%ROWTYPE;
 	b u_simple1.tile%ROWTYPE;
 BEGIN
@@ -602,35 +602,35 @@ DECLARE
 	eligible_subflows INTEGER;
 BEGIN
 
-	CREATE TEMPORARY TABLE t ON COMMIT DROP AS (
+	CREATE TEMPORARY TABLE t ON COMMIT DROP AS ( 
 		SELECT type_flowid FROM (
 		(SELECT type_flowid FROM (SELECT * FROM rules.type_flows_allowed_on_type_structures WHERE is_starting_here) AS beg1 join (SELECT * FROM rules.type_structure WHERE type_structureid = type_beg) AS beg2 using (type_structure_classid) ) AS b
-		JOIN
-		(SELECT type_flowid FROM (SELECT * FROM rules.type_flows_allowed_on_type_structures WHERE NOT is_starting_here) AS end1 join (SELECT * FROM rules.type_structure WHERE type_structureid = type_end) AS end2 using (type_structure_classid) ) AS e
-		USING (type_flowid)
+		JOIN 
+		(SELECT type_flowid FROM (SELECT * FROM rules.type_flows_allowed_on_type_structures WHERE NOT is_starting_here) AS end1 join (SELECT * FROM rules.type_structure WHERE type_structureid = type_end) AS end2 using (type_structure_classid) ) AS e 
+		USING (type_flowid) 
 	));
 
 	GET DIAGNOSTICS eligible_flows = ROW_COUNT;
 
 	RAISE NOTICE 'Number of eligible flows is (%), FOUND variable is (%)',eligible_flows,FOUND;
 
-	IF (eligible_flows = 0) THEN
+	IF (eligible_flows = 0) THEN 
 		RAISE WARNING 'No such flow can be created';
 		RETURN NULL;
 	END IF;
 
-	IF (eligible_flows = 1) THEN
+	IF (eligible_flows = 1) THEN 
 		-- it's time to check whether subclasses match
 		PERFORM type_flow_subclassid  FROM rules.type_structure WHERE type_structureid=type_beg OR type_structureid=type_end GROUP BY type_flow_subclassid;
 		GET DIAGNOSTICS eligible_subflows = ROW_COUNT;
-
-		IF (eligible_subflows = 1) THEN
+		
+		IF (eligible_subflows = 1) THEN 
 			RETURN (SELECT type_flowid FROM t);
 		else
 			RAISE WARNING 'Incorrect subflows, these structures do not match together!';
 			RETURN NULL;
 		END IF;
-	ELSE
+	ELSE 
 		RAISE WARNING 'Too many flows (%) can be created, this function is not returning valid results anymore!',eligible_flows;
 		return NULL;
 	END if;
@@ -659,7 +659,7 @@ BEGIN
 
 	-- is there any line, that satisfy the condition?
 	RETURN (SELECT count(*)>0 FROM rules.type_flows_allowed_on_type_structures_list
-		WHERE type_flowid=tfid AND sb=tb.type_structure_classid AND se=te.type_structure_classid);
+		WHERE type_flowid=tfid AND sb=tb.type_structure_classid AND se=te.type_structure_classid);		
 
 END;
 $$;
@@ -681,12 +681,12 @@ BEGIN
 	SELECT * INTO itia FROM rules.type_item_as_tool_in_activity WHERE type_activityid=NEW.type_activityid and type_itemid=NEW.type_itemid;
 
 	-- If there is item for activity, do not insert new, just update existing
-	IF (itia IS NOT NULL) THEN
+	IF (itia IS NOT NULL) THEN 
 		UPDATE rules.type_item_as_tool_in_activity SET is_mandatory=NEW.is_mandatory WHERE type_activityid=NEW.type_activityid and type_itemid=NEW.type_itemid;
 		RETURN NULL;
 	END IF;
-
-	RETURN NEW;
+	
+	RETURN NEW;	
 
 END;
 $$;
@@ -708,7 +708,7 @@ BEGIN
 		DELETE FROM rules.type_item_in_activity WHERE type_itemid=NEW.type_itemid AND type_activityid=NEW.type_activityid;
 		RETURN NULL;
 	END IF;
-
+	
 	RETURN NEW;
 END;
 $$;
@@ -764,13 +764,13 @@ DECLARE
 BEGIN
 	-- Is there such record already?
 	SELECT * INTO iia FROM rules.type_item_in_activity WHERE type_activityid=NEW.type_activityid AND type_itemid=NEW.type_itemid AND is_item_input=NEW.is_item_input;
-
+	
 	-- If there is item for activity, do not insert new, just update existing
-	IF (iia IS NOT NULL) THEN
+	IF (iia IS NOT NULL) THEN 
 		UPDATE rules.type_item_in_activity SET item_count=item_count+NEW.item_count WHERE type_activityid=NEW.type_activityid AND type_itemid=NEW.type_itemid;
 		RETURN NULL;
 	END IF;
-
+	
 	RETURN NEW;
 
 END;
