@@ -115,11 +115,11 @@ post '/production/new' => sub {
 # this covers just basic updates to production - name, stamina a structure's type and minlevel
 post '/production/basic_updates' => sub {
 	my $c = shift;
-	#say Dumper($c->req->params->to_hash);
+	say Dumper($c->req->params->to_hash);
 
-	my $prod = $pg->db->query(qq(UPDATE rules.type_activity SET type_structureid=?, min_struct_level=?, type_activity_name=?, stamina=? WHERE type_activityid=?;),$c->param('values[type_structureid]'),$c->param('values[min_struct_level]'),$c->param('values[type_activity_name]'),$c->param('values[stamina]'),$c->param('aid'));
+	my $prod = $pg->db->query(qq(UPDATE rules.type_activity SET type_structureid=?, min_struct_level=?, type_activity_name=?, stamina=? WHERE type_activityid=?;),$c->param('type_structureid'),$c->param('min_struct_level'),$c->param('type_activity_name'),$c->param('stamina'),$c->param('aid'));
 
-	$c->render(json => {return_value => 0});
+	$c->redirect_to($c->req->headers->referrer);
 };
 ############
 
@@ -223,25 +223,6 @@ __DATA__
 
 %= javascript begin
 ///////////////
-function basic_updates(aid) {
-  //send post data and reload ALWAYS (not only when done)
-  //console.log(aid);
-
-	var v = {
-		type_structureid:jQuery('#structures').val(),
-		min_struct_level:jQuery('#structurelevel').val(),
-		type_activity_name:jQuery('#name').val(),
-		stamina:jQuery('#stamina').val()
-	};
-
-  jQuery.post('/production/basic_updates',{aid:aid, values:v})
-    .always(function(){
-        location.reload();
-    });
-};
-///////////////
-
-///////////////
 function item_updates(ut,ctg,aid) {
 	//console.log(ctg)
 
@@ -262,6 +243,25 @@ function item_updates(ut,ctg,aid) {
 	});
 };
 ///////////////
+
+///////////////
+function basic_updates(aid) {
+  //send post data and reload ALWAYS (not only when done)
+  //console.log(aid);
+
+	var v = {
+		type_structureid:jQuery('#structures').val(),
+		min_struct_level:jQuery('#structurelevel').val(),
+		type_activity_name:jQuery('#name').val(),
+		stamina:jQuery('#stamina').val()
+	};
+
+  jQuery.post('/production/basic_updates',{aid:aid, values:v})
+    .always(function(){
+        location.reload();
+    });
+};
+///////////////
 %= end
 
 
@@ -269,24 +269,27 @@ function item_updates(ut,ctg,aid) {
 <h1>Production ID:  <%= param 'aid' =%></h1>
 
 % # These are just basic updates packet into table (it'd be nicer to do it via form_for)
+%= form_for '/production/basic_updates' => (method => 'post') => begin
+%= hidden_field aid => (param 'aid')
 <table frame="box" width='540px'>
 	<tr>
 		<td>Name:</td>
-		<td colspan="3" align="center"> <%= text_field  'Production name' => $prod->{'activity'}, id=>"name"   =%> </td>
-		<td rowspan="3"> <%= input_tag 'update', id=>'updatebutton', type => 'button', value => 'update', onclick => "basic_updates(".(param 'aid').")" =%> </td>
+		<td colspan="3" align="center"> <%= text_field  'type_activity_name' => $prod->{'activity'}, id=>"name"   =%> </td>
+		<td rowspan="3"> <%= submit_button 'update', id=>'updatebutton'=%> </td>
 	</tr>
 	<tr>
 		<td>Stamina:</td>
-		<td colspan="3" align="left"> <%= text_field  'stamina ' => $prod->{'stamina'}, id=>"stamina", class => 'stamina_input' =%> </td>
+		<td colspan="3" align="left"> <%= text_field  'stamina' => $prod->{'stamina'}, id=>"stamina", class => 'stamina_input' =%> </td>
 
 	</tr>
 	<tr>
 	<td>Structure:</td>
-		<td><%= select_field 'structure' => $structures,  (id => 'structures') =%> </td>
+		<td><%= select_field 'type_structureid' => $structures,  (id => 'structures') =%> </td>
 		<td> <%= input_tag 'createnewstructure', id=>'create_new_structure_button', type => 'button', value => '...', onclick => "" =%> </td>
-		<td><%= select_field 'structurelevel' => $structurelevels,  (id => 'structurelevel') =%> </td>
+		<td><%= select_field 'min_struct_level' => $structurelevels,  (id => 'structurelevel') =%> </td>
 	</tr>
 </table>
+%= end
 
 <br>
 
@@ -311,6 +314,7 @@ function item_updates(ut,ctg,aid) {
 % # even add and del buttons have very similar code, so we use foreach
 				<% foreach my $a ('add', 'del') { %>
 						<%= input_tag $a.'_item_'.$ctg, id=> $a.'_item_'.$ctg.'_button', type => 'button', value => $arrows->{$a}, onclick => qq(item_updates\('$a','$ctg',).(param 'aid').qq(\)) =%>
+						<br>
 				<% } %>
 			</td>
 % # well the selection of items to add require different condition (on items) for each category, therefore we need a lot of ifs and elsifs
