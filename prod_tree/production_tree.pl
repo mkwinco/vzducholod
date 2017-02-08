@@ -26,6 +26,15 @@ get '/production_tree' => sub {
 ############
 
 ############
+# delete site
+get '/delete' => sub {
+	my $c = shift;
+
+	$c->render(template => 'delete');
+};
+############
+
+############
 # this one returns info about one or more production - JSON style
 get '/production.api' => sub {
 	my $c = shift;
@@ -81,7 +90,7 @@ get '/production' => sub {
 
 	# prepare array of production structures for selection element
 	my $structures = $pg->db->query(qq(SELECT type_structure_name, type_structureid FROM rules.type_structure WHERE type_structure_classid ~* ? ;),'PS-WS|WF')->arrays->to_array;
-	#say Dumper($structures);
+	say Dumper($structures);
 
 	# list items with their information about their production status (aux_production_level<0 - not produced yet)
 	# in the embedded perl, appropriate lists for item selections will be prepared from this hash
@@ -95,6 +104,30 @@ get '/production' => sub {
 	my $sl = [['I',1],['II',2],['III',3],['IV',4],['V',5],['VI',6],['VII',7],['VIII',8],['IX',9],['X',10],['XI',11],['XII',12]];
 
 	$c->render(template => 'production_edit', prod => $prod, items=>$items, structures => $structures, structurelevels => $sl, allitems => $allitems, arrows => {'add' => '<--', 'del' => '-->'} );
+};
+############
+
+############
+get '/structure' => sub {
+	my $c = shift;
+
+# well, list all classes (although they are fixed by game principles)
+	my $class = ();
+	foreach (@{$pg->db->query(qq(SELECT full_name, type_structure_classid  FROM rules.type_structure_class;))->hashes->to_array}) {
+		# actually the structure mentioned here http://mojolicious.org/perldoc/Mojolicious/Plugin/TagHelpers#select_field is NOT valid perl structure, but one can use just a list ("=>" --> ",")
+		my $sel = ($_->{'type_structure_classid'} eq 'PS-WS') ? 'selected' : '';
+		push(@$class,[$_->{full_name} => $_->{type_structure_classid}, $sel => $sel]);
+	}
+	#say Dumper($class);
+
+# and as well, list all Field Assignment (FA) flow's subclasses (these are dynamic and can be altered - as part of production tree editing)
+		my $subclass->[0] = ['none' => 'NULL','selected' => 'selected'];
+		foreach (@{$pg->db->query(qq(SELECT type_flow_subclassid, description FROM rules.type_flow_subclass WHERE type_flowid='FA';))->hashes->to_array}) {
+			push(@$subclass,[$_->{'description'} => $_->{'type_flow_subclassid'}]);
+		}
+	#say Dumper($subclass);
+
+	$c->render(template => 'structure_edit', class => $class, subclass => $subclass);
 };
 ############
 
@@ -176,6 +209,32 @@ post '/item/new' => sub {
 };
 ############
 
+############
+# creating new FA subclass - we need just name and description
+post '/structure/new' => sub {
+	my $c = shift;
+	say Dumper($c->req->params->to_hash);
+
+	# lower case for description, upper case for ID
+	$pg->db->query(qq(INSERT INTO rules.type_structure(type_structure_name, type_structure_classid, type_flow_subclassid) VALUES (?, ?, ?);),lc $c->param('type_structure_name'),uc $c->param('type_structure_classid'),$c->param('type_flow_subclassid'));
+
+	$c->redirect_to($c->req->headers->referrer);
+};
+############
+
+############
+# creating new FA subclass - we need just name and description
+post '/structure/subclass/new' => sub {
+	my $c = shift;
+	#say Dumper($c->req->params->to_hash);
+
+	# lower case for description, upper case for ID
+	$pg->db->query(qq(INSERT INTO rules.type_flow_subclass(type_flow_subclassid, type_flowid, description) VALUES (?, ?, ?);),uc $c->param('type_flow_subclassid'),'FA',lc $c->param('description') );
+
+	$c->redirect_to($c->req->headers->referrer);
+};
+############
+
 ####################################################################################
 app->start;
 __DATA__
@@ -199,6 +258,12 @@ __DATA__
 	%= submit_button 'New Production'
 %= end
 
+<br>
+% # link to delete site
+%= form_for '/delete' => (method => 'get') => begin
+	%= submit_button 'Delete production/structure/item'
+%= end
+
 <h1>Production tree overview</h1>
 
 
@@ -206,7 +271,7 @@ __DATA__
 
 @@ production_edit.html.ep
 % layout 'default';
-% title ' Edit Production';
+% title 'Edit Production';
 %= javascript "//code.jquery.com/jquery-2.1.1.js"
 
 
@@ -243,32 +308,13 @@ function item_updates(ut,ctg,aid) {
 	});
 };
 ///////////////
-
-///////////////
-function basic_updates(aid) {
-  //send post data and reload ALWAYS (not only when done)
-  //console.log(aid);
-
-	var v = {
-		type_structureid:jQuery('#structures').val(),
-		min_struct_level:jQuery('#structurelevel').val(),
-		type_activity_name:jQuery('#name').val(),
-		stamina:jQuery('#stamina').val()
-	};
-
-  jQuery.post('/production/basic_updates',{aid:aid, values:v})
-    .always(function(){
-        location.reload();
-    });
-};
-///////////////
 %= end
 
 
 % content
 <h1>Production ID:  <%= param 'aid' =%></h1>
 
-% # These are just basic updates packet into table (it'd be nicer to do it via form_for)
+% # These are just basic updates packet into table (it's nicer to do it via form_for)
 %= form_for '/production/basic_updates' => (method => 'post') => begin
 %= hidden_field aid => (param 'aid')
 <table frame="box" width='540px'>
@@ -280,12 +326,11 @@ function basic_updates(aid) {
 	<tr>
 		<td>Stamina:</td>
 		<td colspan="3" align="left"> <%= text_field  'stamina' => $prod->{'stamina'}, id=>"stamina", class => 'stamina_input' =%> </td>
-
 	</tr>
 	<tr>
 	<td>Structure:</td>
 		<td><%= select_field 'type_structureid' => $structures,  (id => 'structures') =%> </td>
-		<td> <%= input_tag 'createnewstructure', id=>'create_new_structure_button', type => 'button', value => '...', onclick => "" =%> </td>
+		<td> <%= input_tag 'createnewstructure', id=>'create_new_structure_button', type => 'button', value => 'Create New', onclick => "location.href='/structure'" =%> </td>
 		<td><%= select_field 'min_struct_level' => $structurelevels,  (id => 'structurelevel') =%> </td>
 	</tr>
 </table>
@@ -332,6 +377,60 @@ function basic_updates(aid) {
 
 </table>
 % # end of foreach table
+
+
+@@ structure_edit.html.ep
+% layout 'default';
+% title 'New Structure';
+
+% content
+<h2>Add structure</h2>
+%= form_for '/structure/new' => (method => 'post') => begin
+	<table frame="box" width='540px'>
+		<tr>
+			<td>Structure Name</td>
+			<td>Class</td>
+			<td>Subclass</td>
+			<td rowspan="2"><%= submit_button 'Add Structure' %></td>
+		</tr>
+		<tr>
+			<td><%= text_field 'type_structure_name', value => 'new structure name' %></td>
+			<td><%= select_field 'type_structure_classid' => $class %></td>
+			<td><%= select_field 'type_flow_subclassid' => $subclass %></td>
+		</tr>
+	</table>
+%= end
+
+<h2>Add FA-flow subclass</h2>
+%= form_for '/structure/subclass/new' => (method => 'post') => begin
+	<table frame="box" width='540px'>
+		<tr>
+			<td>Subclass description</td>
+			<td>Subclass ID</td>
+			<td rowspan="2"><%= submit_button 'Add Subclass' %></td>
+		</tr>
+		<tr>
+			<td><%= text_field 'description', value => 'This bind camp with workfield' %></td>
+			<td><%= text_field 'type_flow_subclassid', value => 'SUBCLASSID' %></td>
+		</tr>
+	</table>
+%= end
+
+
+@@ delete.html.ep
+% layout 'default';
+% title 'Delete objects';
+
+% content
+<h2>Delete production type</h2>
+List of all production types
+
+<h2>Delete structure type</h2>
+List of all structure types not included in any production
+<h2>Delete FA-flow subclass</h2>
+List of all subclasses withot structure type
+<h2>Delete item</h2>
+List of all items, not used in any production type
 
 
 @@ layouts/default.html.ep

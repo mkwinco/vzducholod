@@ -865,11 +865,25 @@ COMMENT ON COLUMN type_item_in_activity.is_item_input IS 'If false, it is output
 
 
 --
+-- Name: type_structureid_seq; Type: SEQUENCE; Schema: rules; Owner: postgres
+--
+
+CREATE SEQUENCE type_structureid_seq
+    START WITH 10004
+    INCREMENT BY 1
+    NO MINVALUE
+    MAXVALUE 2147483648
+    CACHE 1;
+
+
+ALTER TABLE type_structureid_seq OWNER TO postgres;
+
+--
 -- Name: type_structure; Type: TABLE; Schema: rules; Owner: postgres
 --
 
 CREATE TABLE type_structure (
-    type_structureid integer NOT NULL,
+    type_structureid integer DEFAULT nextval('type_structureid_seq'::regclass) NOT NULL,
     area_min integer,
     area_max integer,
     xplusy_min integer,
@@ -1159,7 +1173,7 @@ ALTER TABLE type_tile OWNER TO postgres;
 --
 
 COPY type_activity (type_activityid, type_structureid, stamina, type_activity_name, min_struct_level, aux_production_level) FROM stdin;
-10004	20000072	0	new production name	1	0
+10004	20000041	0	10004: to be deleted	1	0
 6202	20000062	250	sugar production	1	0
 6201	20000062	155	wheat production	1	0
 4201	20000042	122	flour from wheet	1	1
@@ -1203,6 +1217,7 @@ COPY type_flow_subclass (type_flow_subclassid, type_flowid, description) FROM st
 AGR	FA	Agriculture
 CONSTR	FA	Structure construction
 MINING	FA	Mining operations
+COLLECT	FA	collecting something
 \.
 
 
@@ -1241,11 +1256,11 @@ f	MARKET	WFA
 COPY type_item (name, type_itemid, aux_production_level) FROM stdin;
 scythe	SCYTHE	-1
 kosak	KOSAK	-1
+butter	BUTTER	-1
 sugar	SUGAR	1
 wheat	WHEAT	1
 flour	FLOUR	2
 bread	BREAD	3
-butter	BUTTER	-1
 \.
 
 
@@ -1298,6 +1313,7 @@ COPY type_structure (type_structureid, area_min, area_max, xplusy_min, xplusy_ma
 20000061	\N	\N	\N	\N	construction site	WF	0	CONSTR
 20000043	\N	\N	\N	\N	bakery	PS-WS	3	\N
 20000062	\N	\N	\N	\N	field	WF	0	AGR
+103	\N	\N	\N	\N	pasture	WF	0	AGR
 \.
 
 
@@ -1313,6 +1329,13 @@ PS-WS	Production Structure - Workshop
 WF	Working Field
 WH	Warehouse/Storage
 \.
+
+
+--
+-- Name: type_structureid_seq; Type: SEQUENCE SET; Schema: rules; Owner: postgres
+--
+
+SELECT pg_catalog.setval('type_structureid_seq', 103, true);
 
 
 --
