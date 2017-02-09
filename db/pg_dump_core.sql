@@ -92,6 +92,25 @@ COMMENT ON EXTENSION adminpack IS 'administrative functions for PostgreSQL';
 SET search_path = general, pg_catalog;
 
 --
+-- Name: authenticate(text, text, text); Type: FUNCTION; Schema: general; Owner: postgres
+--
+
+CREATE FUNCTION authenticate(us text, pw text, ak text DEFAULT ''::text) RETURNS text
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+
+BEGIN
+
+	RETURN us;
+
+END;
+$$;
+
+
+ALTER FUNCTION general.authenticate(us text, pw text, ak text) OWNER TO postgres;
+
+--
 -- Name: schemaexists(name); Type: FUNCTION; Schema: general; Owner: postgres
 --
 
@@ -1214,8 +1233,8 @@ ALTER TABLE type_tile OWNER TO postgres;
 --
 
 COPY type_activity (type_activityid, type_structureid, stamina, type_activity_name, min_struct_level, aux_production_level) FROM stdin;
-6202	20000062	250	sugar production	1	0
 6201	20000062	155	wheat production	1	0
+6202	20000062	250	sugar production	1	0
 10005	108	100	Simple tool production	1	0
 4201	20000042	122	flour from wheet	1	1
 4301	20000043	201	bread from flour	1	2
@@ -1297,8 +1316,8 @@ COPY type_item (name, type_itemid, aux_production_level) FROM stdin;
 butter	BUTTER	-1
 scythe	SCYTHE	-1
 kosak	KOSAK	-1
-sugar	SUGAR	1
 wheat	WHEAT	1
+sugar	SUGAR	1
 simpletool	SIMPLETOOL	1
 flour	FLOUR	2
 bread	BREAD	3

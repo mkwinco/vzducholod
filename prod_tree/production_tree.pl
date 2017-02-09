@@ -13,8 +13,59 @@ use Mojo::Pg;
 # protocol://user:pass@host/database
 my $pg = Mojo::Pg->new('postgresql://postgres:postgres@localhost/econmod_v03');
 
+use Mojolicious::Plugin::Authentication
 
 ##############################################################
+
+######## add authentication ##########
+plugin 'authentication', {
+	autoload_user=>1,
+	load_user => sub {
+		my ($c,$uid) = @_;
+		return $uid;
+	},
+	validate_user => sub {
+		my ($c,$un,$pw,$extra) = @_;
+
+		my $authDB = $pg->db->query(qq(SELECT * FROM general.authenticate(?,?,?);),$un,$pw,'')->hash;
+
+		#say Dumper($authDB);
+
+		# if there is authenticated user and the username equals the incoming value then return it
+		if (defined $authDB->{'authenticate'}) {
+			return $authDB->{'authenticate'} if ($authDB->{'authenticate'} eq $un)
+		};
+		# otherwise return undef
+		return;
+	},
+};
+
+############## LOGIN ##################
+post '/login_test' => sub {
+	my $c = shift;
+
+	my $u=$c->authenticate($c->req->param('username'),$c->req->param('password'),{auth_key=>''});
+	$c->redirect_to('/production_tree');
+};
+
+
+get '/login' =>  sub {
+	my $c = shift;
+
+	$c->logout();
+	$c->render('login');
+};
+
+####################### UNDER (NOT AUTENTICATED) ########################
+under sub {
+	my $c = shift;
+
+	return 1 if ($c->is_user_authenticated());
+
+	$c->redirect_to('login');
+	return;
+};
+
 
 ############
 # see all productions (nice big overview)
@@ -532,6 +583,21 @@ function item_updates(ut,ctg,aid) {
 			<td rowspan="1" align="right"><%= submit_button 'Remove item type' %></td>
 		</tr>
 	</table>
+%= end
+
+
+@@ login.html.ep
+% layout 'default';
+% title 'Production tree login';
+
+
+%= t h1 => 'Production tree login'
+%= form_for '/login_test' => (method => 'post') => begin
+	<table>
+		<tr> <td>Username: </td> <td> <%= text_field 'username' %> </td> </tr>
+		<tr> <td>Password: </td> <td> <%= text_field 'password' %> </td> </tr>
+	</table>
+	%= submit_button 'Log in'
 %= end
 
 
