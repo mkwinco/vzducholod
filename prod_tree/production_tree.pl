@@ -26,15 +26,6 @@ get '/production_tree' => sub {
 ############
 
 ############
-# delete site
-get '/delete' => sub {
-	my $c = shift;
-
-	$c->render(template => 'delete');
-};
-############
-
-############
 # this one returns info about one or more production - JSON style
 get '/production.api' => sub {
 	my $c = shift;
@@ -72,6 +63,8 @@ get '/production' => sub {
 		$c->render(inline => 'No such production');
 		return;
 	};
+	# if the activity produces only end-products, we show "delete" button
+	$prod->{'removable'} = $pg->db->query(qq(SELECT count(*) FROM rules.endproduct_or_empty_activities WHERE type_activityid=?;),$c->param('aid'))->arrays->to_array->[0]->[0];
 	#say Dumper($prod);
 
 	# create arrays for html selection elements
@@ -90,7 +83,7 @@ get '/production' => sub {
 
 	# prepare array of production structures for selection element
 	my $structures = $pg->db->query(qq(SELECT type_structure_name, type_structureid FROM rules.type_structure WHERE type_structure_classid ~* ? ;),'PS-WS|WF')->arrays->to_array;
-	say Dumper($structures);
+	#say Dumper($structures);
 
 	# list items with their information about their production status (aux_production_level<0 - not produced yet)
 	# in the embedded perl, appropriate lists for item selections will be prepared from this hash
@@ -131,6 +124,25 @@ get '/structure' => sub {
 };
 ############
 
+
+############
+# delete site
+get '/delete' => sub {
+	my $c = shift;
+
+	# list all production structures not included in any activity
+	my $structures = $pg->db->query(qq(SELECT type_structure_name, type_structureid FROM rules.type_structure WHERE type_structure_classid ~* ? AND type_structureid NOT IN (SELECT DISTINCT type_structureid FROM rules.type_activity);),'PS-WS|WF')->arrays->to_array;
+	#say Dumper($structures);
+
+ 	my $subclass = $pg->db->query(qq(SELECT description, type_flow_subclassid  FROM rules.type_flow_subclass WHERE type_flow_subclassid NOT IN (SELECT DISTINCT type_flow_subclassid FROM rules.type_structure WHERE type_flow_subclassid IS NOT NULL);))->arrays->to_array;
+	say Dumper($subclass);
+
+	$c->render(template => 'delete', structures => $structures, subclass => $subclass);
+};
+############
+
+################################################# GET POST ######################################
+
 ############
 # insert a new production
 post '/production/new' => sub {
@@ -148,7 +160,7 @@ post '/production/new' => sub {
 # this covers just basic updates to production - name, stamina a structure's type and minlevel
 post '/production/basic_updates' => sub {
 	my $c = shift;
-	say Dumper($c->req->params->to_hash);
+	#say Dumper($c->req->params->to_hash);
 
 	my $prod = $pg->db->query(qq(UPDATE rules.type_activity SET type_structureid=?, min_struct_level=?, type_activity_name=?, stamina=? WHERE type_activityid=?;),$c->param('type_structureid'),$c->param('min_struct_level'),$c->param('type_activity_name'),$c->param('stamina'),$c->param('aid'));
 
@@ -215,8 +227,12 @@ post '/structure/new' => sub {
 	my $c = shift;
 	say Dumper($c->req->params->to_hash);
 
+	# type_flow_subclassid can be null
+	my $tpsc = ($c->param('type_flow_subclassid') ne 'NULL') ? $c->param('type_flow_subclassid') : undef;
+	say $tpsc;
+
 	# lower case for description, upper case for ID
-	$pg->db->query(qq(INSERT INTO rules.type_structure(type_structure_name, type_structure_classid, type_flow_subclassid) VALUES (?, ?, ?);),lc $c->param('type_structure_name'),uc $c->param('type_structure_classid'),$c->param('type_flow_subclassid'));
+	$pg->db->query(qq(INSERT INTO rules.type_structure(type_structure_name, type_structure_classid, type_flow_subclassid) VALUES (?, ?, ?);),lc $c->param('type_structure_name'),uc $c->param('type_structure_classid'),$tpsc);
 
 	$c->redirect_to($c->req->headers->referrer);
 };
@@ -232,6 +248,18 @@ post '/structure/subclass/new' => sub {
 	$pg->db->query(qq(INSERT INTO rules.type_flow_subclass(type_flow_subclassid, type_flowid, description) VALUES (?, ?, ?);),uc $c->param('type_flow_subclassid'),'FA',lc $c->param('description') );
 
 	$c->redirect_to($c->req->headers->referrer);
+};
+############
+
+############
+# this one just deletes the given activity type
+post '/production/delete' => sub {
+	my $c = shift;
+	say Dumper($c->req->params->to_hash);
+
+	$pg->db->query(qq(DELETE FROM rules.type_activity WHERE type_activityid=?),$c->param('aid'));
+
+	$c->redirect_to('/production_tree');
 };
 ############
 
@@ -259,10 +287,6 @@ __DATA__
 %= end
 
 <br>
-% # link to delete site
-%= form_for '/delete' => (method => 'get') => begin
-	%= submit_button 'Delete production/structure/item'
-%= end
 
 <h1>Production tree overview</h1>
 
@@ -378,6 +402,23 @@ function item_updates(ut,ctg,aid) {
 </table>
 % # end of foreach table
 
+<br>
+% # link to delete site
+%= form_for '/delete' => (method => 'get') => begin
+	%= submit_button 'Delete structure or item ...'
+%= end
+
+<br>
+% # show delete "button" only if allowed production
+% if ($prod->{'removable'} == 1) {
+	%= form_for '/production/delete' => (method => 'post') => begin
+		%= submit_button 'Delete this production'
+		%= hidden_field aid => (param 'aid')
+	%= end
+% } else {
+	(There is another activity dependending on this production's outputs)
+% }
+
 
 @@ structure_edit.html.ep
 % layout 'default';
@@ -422,13 +463,27 @@ function item_updates(ut,ctg,aid) {
 % title 'Delete objects';
 
 % content
-<h2>Delete production type</h2>
-List of all production types
+
 
 <h2>Delete structure type</h2>
-List of all structure types not included in any production
+%= form_for '/structure/delete' => (method => 'post') => begin
+	<table frame="box" width='540px'>
+		<tr>
+			<td><%= select_field 'type_structureid' => $structures,  (id => 'structures') =%> </td>
+			<td rowspan="1" align="right"><%= submit_button 'Remove structure type' %></td>
+		</tr>
+	</table>
+%= end
+
 <h2>Delete FA-flow subclass</h2>
-List of all subclasses withot structure type
+%= form_for '/structure/delete' => (method => 'post') => begin
+	<table frame="box" width='540px'>
+		<tr>
+			<td><%= select_field 'type_flow_subclassid' => $subclass,  (id => 'subclass') =%> </td>
+			<td rowspan="1" align="right"><%= submit_button 'Remove subclass type' %></td>
+		</tr>
+	</table>
+%= end
 <h2>Delete item</h2>
 List of all items, not used in any production type
 

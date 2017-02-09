@@ -998,6 +998,30 @@ COMMENT ON VIEW all_productions IS 'From postgresql 9.5 - recommended to use jso
 
 
 --
+-- Name: endproduct_or_empty_activities; Type: VIEW; Schema: rules; Owner: postgres
+--
+
+CREATE VIEW endproduct_or_empty_activities AS
+ SELECT type_activity.type_activityid
+   FROM type_activity
+  WHERE (NOT (type_activity.type_activityid IN ( SELECT type_item_in_activity.type_activityid
+           FROM type_item_in_activity
+          WHERE (NOT type_item_in_activity.is_item_input))))
+UNION
+ SELECT DISTINCT type_item_in_activity.type_activityid
+   FROM type_item_in_activity
+  WHERE ((NOT type_item_in_activity.is_item_input) AND (NOT (type_item_in_activity.type_itemid IN ( SELECT DISTINCT type_item_in_activity_1.type_itemid
+           FROM type_item_in_activity type_item_in_activity_1
+          WHERE type_item_in_activity_1.is_item_input
+        UNION
+         SELECT DISTINCT type_item_as_tool_in_activity.type_itemid
+           FROM type_item_as_tool_in_activity
+          WHERE type_item_as_tool_in_activity.is_mandatory))));
+
+
+ALTER TABLE endproduct_or_empty_activities OWNER TO postgres;
+
+--
 -- Name: type_construction; Type: TABLE; Schema: rules; Owner: postgres
 --
 
@@ -1173,9 +1197,9 @@ ALTER TABLE type_tile OWNER TO postgres;
 --
 
 COPY type_activity (type_activityid, type_structureid, stamina, type_activity_name, min_struct_level, aux_production_level) FROM stdin;
-10004	20000041	0	10004: to be deleted	1	0
 6202	20000062	250	sugar production	1	0
 6201	20000062	155	wheat production	1	0
+10005	108	100	Simple tool production	1	0
 4201	20000042	122	flour from wheet	1	1
 4301	20000043	201	bread from flour	1	2
 \.
@@ -1185,7 +1209,7 @@ COPY type_activity (type_activityid, type_structureid, stamina, type_activity_na
 -- Name: type_activityid_seq; Type: SEQUENCE SET; Schema: rules; Owner: postgres
 --
 
-SELECT pg_catalog.setval('type_activityid_seq', 10004, true);
+SELECT pg_catalog.setval('type_activityid_seq', 10006, true);
 
 
 --
@@ -1259,6 +1283,7 @@ kosak	KOSAK	-1
 butter	BUTTER	-1
 sugar	SUGAR	1
 wheat	WHEAT	1
+simpletool	SIMPLETOOL	1
 flour	FLOUR	2
 bread	BREAD	3
 \.
@@ -1287,6 +1312,7 @@ COPY type_item_in_activity (type_activityid, type_itemid, is_item_input, item_co
 4201	FLOUR	f	1
 6201	WHEAT	f	1
 4201	WHEAT	t	2
+10005	SIMPLETOOL	f	1
 \.
 
 
@@ -1314,6 +1340,7 @@ COPY type_structure (type_structureid, area_min, area_max, xplusy_min, xplusy_ma
 20000043	\N	\N	\N	\N	bakery	PS-WS	3	\N
 20000062	\N	\N	\N	\N	field	WF	0	AGR
 103	\N	\N	\N	\N	pasture	WF	0	AGR
+108	\N	\N	\N	\N	simpleworkshop	PS-WS	0	\N
 \.
 
 
@@ -1335,7 +1362,7 @@ WH	Warehouse/Storage
 -- Name: type_structureid_seq; Type: SEQUENCE SET; Schema: rules; Owner: postgres
 --
 
-SELECT pg_catalog.setval('type_structureid_seq', 103, true);
+SELECT pg_catalog.setval('type_structureid_seq', 108, true);
 
 
 --
