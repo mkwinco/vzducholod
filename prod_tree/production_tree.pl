@@ -135,9 +135,12 @@ get '/delete' => sub {
 	#say Dumper($structures);
 
  	my $subclass = $pg->db->query(qq(SELECT description, type_flow_subclassid  FROM rules.type_flow_subclass WHERE type_flow_subclassid NOT IN (SELECT DISTINCT type_flow_subclassid FROM rules.type_structure WHERE type_flow_subclassid IS NOT NULL);))->arrays->to_array;
-	say Dumper($subclass);
+	#say Dumper($subclass);
 
-	$c->render(template => 'delete', structures => $structures, subclass => $subclass);
+	my $items = $pg->db->query(qq(SELECT name, type_itemid  FROM rules.type_item WHERE type_itemid NOT IN (SELECT type_itemid FROM rules.type_items_used);))->arrays->to_array;
+	#say Dumper($items);
+
+	$c->render(template => 'delete', structures => $structures, subclass => $subclass, items => $items);
 };
 ############
 
@@ -229,7 +232,7 @@ post '/structure/new' => sub {
 
 	# type_flow_subclassid can be null
 	my $tpsc = ($c->param('type_flow_subclassid') ne 'NULL') ? $c->param('type_flow_subclassid') : undef;
-	say $tpsc;
+	#say $tpsc;
 
 	# lower case for description, upper case for ID
 	$pg->db->query(qq(INSERT INTO rules.type_structure(type_structure_name, type_structure_classid, type_flow_subclassid) VALUES (?, ?, ?);),lc $c->param('type_structure_name'),uc $c->param('type_structure_classid'),$tpsc);
@@ -255,11 +258,47 @@ post '/structure/subclass/new' => sub {
 # this one just deletes the given activity type
 post '/production/delete' => sub {
 	my $c = shift;
-	say Dumper($c->req->params->to_hash);
+	#say Dumper($c->req->params->to_hash);
 
 	$pg->db->query(qq(DELETE FROM rules.type_activity WHERE type_activityid=?),$c->param('aid'));
 
 	$c->redirect_to('/production_tree');
+};
+############
+
+############
+# this one just deletes the given structure type
+post '/structure/delete' => sub {
+	my $c = shift;
+	#say Dumper($c->req->params->to_hash);
+
+	$pg->db->query(qq(DELETE FROM rules.type_structure WHERE type_structureid=?),$c->param('type_structureid'));
+
+	$c->redirect_to($c->req->headers->referrer);
+};
+############
+
+############
+# this one just deletes the given structure type
+post '/structure/subclass/delete' => sub {
+	my $c = shift;
+	#say Dumper($c->req->params->to_hash);
+
+	$pg->db->query(qq(DELETE FROM rules.type_flow_subclass WHERE type_flow_subclassid=?),$c->param('type_flow_subclassid'));
+
+	$c->redirect_to($c->req->headers->referrer);
+};
+############
+
+############
+# this one just deletes the given structure type
+post '/item/delete' => sub {
+	my $c = shift;
+	#say Dumper($c->req->params->to_hash);
+
+	$pg->db->query(qq(DELETE FROM rules.type_item WHERE type_itemid=?),$c->param('type_itemid'));
+
+	$c->redirect_to($c->req->headers->referrer);
 };
 ############
 
@@ -476,7 +515,7 @@ function item_updates(ut,ctg,aid) {
 %= end
 
 <h2>Delete FA-flow subclass</h2>
-%= form_for '/structure/delete' => (method => 'post') => begin
+%= form_for '/structure/subclass/delete' => (method => 'post') => begin
 	<table frame="box" width='540px'>
 		<tr>
 			<td><%= select_field 'type_flow_subclassid' => $subclass,  (id => 'subclass') =%> </td>
@@ -484,8 +523,16 @@ function item_updates(ut,ctg,aid) {
 		</tr>
 	</table>
 %= end
-<h2>Delete item</h2>
-List of all items, not used in any production type
+
+<h2>Delete item type</h2>
+%= form_for '/item/delete' => (method => 'post') => begin
+	<table frame="box" width='540px'>
+		<tr>
+			<td><%= select_field 'type_itemid' => $items,  (id => 'items') =%> </td>
+			<td rowspan="1" align="right"><%= submit_button 'Remove item type' %></td>
+		</tr>
+	</table>
+%= end
 
 
 @@ layouts/default.html.ep

@@ -3,7 +3,7 @@
 --
 
 -- Dumped from database version 9.6.1
--- Dumped by pg_dump version 9.6.1
+-- Dumped by pg_dump version 9.6.2
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -1150,6 +1150,23 @@ CREATE TABLE type_item_in_construction (
 ALTER TABLE type_item_in_construction OWNER TO postgres;
 
 --
+-- Name: type_items_used; Type: VIEW; Schema: rules; Owner: postgres
+--
+
+CREATE VIEW type_items_used AS
+ SELECT DISTINCT type_item_in_construction.type_itemid
+   FROM type_item_in_construction
+UNION
+ SELECT DISTINCT type_item_in_activity.type_itemid
+   FROM type_item_in_activity
+UNION
+ SELECT DISTINCT type_item_as_tool_in_activity.type_itemid
+   FROM type_item_as_tool_in_activity;
+
+
+ALTER TABLE type_items_used OWNER TO postgres;
+
+--
 -- Name: type_structure_class; Type: TABLE; Schema: rules; Owner: postgres
 --
 
@@ -1240,7 +1257,6 @@ WFA	Workforce Assignment
 COPY type_flow_subclass (type_flow_subclassid, type_flowid, description) FROM stdin;
 AGR	FA	Agriculture
 CONSTR	FA	Structure construction
-MINING	FA	Mining operations
 COLLECT	FA	collecting something
 \.
 
@@ -1278,9 +1294,9 @@ f	MARKET	WFA
 --
 
 COPY type_item (name, type_itemid, aux_production_level) FROM stdin;
+butter	BUTTER	-1
 scythe	SCYTHE	-1
 kosak	KOSAK	-1
-butter	BUTTER	-1
 sugar	SUGAR	1
 wheat	WHEAT	1
 simpletool	SIMPLETOOL	1
@@ -1329,7 +1345,6 @@ COPY type_item_in_construction (type_constructionid, type_itemid, item_count) FR
 --
 
 COPY type_structure (type_structureid, area_min, area_max, xplusy_min, xplusy_max, type_structure_name, type_structure_classid, item_space, type_flow_subclassid) FROM stdin;
-20000041	\N	\N	\N	\N	lumberjack	PS-WS	0	\N
 20000042	\N	\N	\N	\N	mill	PS-WS	0	\N
 20000030	\N	\N	\N	\N	warehouse	WH	0	\N
 20000020	\N	\N	\N	\N	market	MARKET	0	\N
