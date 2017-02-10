@@ -15,18 +15,16 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- Name: u_simple1; Type: SCHEMA; Schema: -; Owner: postgres
+-- Name: u_simple1; Type: SCHEMA; Schema: -; Owner: -
 --
 
 CREATE SCHEMA u_simple1;
 
 
-ALTER SCHEMA u_simple1 OWNER TO postgres;
-
 SET search_path = u_simple1, pg_catalog;
 
 --
--- Name: tileid_calculation(); Type: FUNCTION; Schema: u_simple1; Owner: postgres
+-- Name: tileid_calculation(); Type: FUNCTION; Schema: u_simple1; Owner: -
 --
 
 CREATE FUNCTION tileid_calculation() RETURNS trigger
@@ -38,14 +36,12 @@ RETURN NEW;
 END;$$;
 
 
-ALTER FUNCTION u_simple1.tileid_calculation() OWNER TO postgres;
-
 SET default_tablespace = '';
 
 SET default_with_oids = false;
 
 --
--- Name: activity; Type: TABLE; Schema: u_simple1; Owner: postgres
+-- Name: activity; Type: TABLE; Schema: u_simple1; Owner: -
 --
 
 CREATE TABLE activity (
@@ -56,10 +52,8 @@ CREATE TABLE activity (
 );
 
 
-ALTER TABLE activity OWNER TO postgres;
-
 --
--- Name: bh; Type: TABLE; Schema: u_simple1; Owner: postgres
+-- Name: bh; Type: TABLE; Schema: u_simple1; Owner: -
 --
 
 CREATE TABLE bh (
@@ -73,31 +67,29 @@ CREATE TABLE bh (
 );
 
 
-ALTER TABLE bh OWNER TO postgres;
-
 --
--- Name: TABLE bh; Type: COMMENT; Schema: u_simple1; Owner: postgres
+-- Name: TABLE bh; Type: COMMENT; Schema: u_simple1; Owner: -
 --
 
 COMMENT ON TABLE bh IS 'bonhomme - inhabitants and settlers table';
 
 
 --
--- Name: COLUMN bh.structureid; Type: COMMENT; Schema: u_simple1; Owner: postgres
+-- Name: COLUMN bh.structureid; Type: COMMENT; Schema: u_simple1; Owner: -
 --
 
 COMMENT ON COLUMN bh.structureid IS 'this is id of the house (or NULL for settler)';
 
 
 --
--- Name: COLUMN bh.tileid; Type: COMMENT; Schema: u_simple1; Owner: postgres
+-- Name: COLUMN bh.tileid; Type: COMMENT; Schema: u_simple1; Owner: -
 --
 
 COMMENT ON COLUMN bh.tileid IS 'this is a NON-NULL value for settlers only. Otherwise it is the current settler''s location';
 
 
 --
--- Name: construction; Type: TABLE; Schema: u_simple1; Owner: postgres
+-- Name: construction; Type: TABLE; Schema: u_simple1; Owner: -
 --
 
 CREATE TABLE construction (
@@ -109,31 +101,29 @@ CREATE TABLE construction (
 );
 
 
-ALTER TABLE construction OWNER TO postgres;
-
 --
--- Name: COLUMN construction.structureid; Type: COMMENT; Schema: u_simple1; Owner: postgres
+-- Name: COLUMN construction.structureid; Type: COMMENT; Schema: u_simple1; Owner: -
 --
 
 COMMENT ON COLUMN construction.structureid IS 'This should be only and only a construction site (RF of CONST subclass)';
 
 
 --
--- Name: COLUMN construction.stamina_total; Type: COMMENT; Schema: u_simple1; Owner: postgres
+-- Name: COLUMN construction.stamina_total; Type: COMMENT; Schema: u_simple1; Owner: -
 --
 
 COMMENT ON COLUMN construction.stamina_total IS 'Auxiliary column for progress tracking purposes: Total stamina for the whole construction. This column is filled at the initialization of construction, it should not be updated afterwards.';
 
 
 --
--- Name: COLUMN construction.stamina_done; Type: COMMENT; Schema: u_simple1; Owner: postgres
+-- Name: COLUMN construction.stamina_done; Type: COMMENT; Schema: u_simple1; Owner: -
 --
 
 COMMENT ON COLUMN construction.stamina_done IS 'Auxiliary column for tracking purposes. Stamina already added into the construction - 0 at the start, updated after every turn.';
 
 
 --
--- Name: constructions_definition; Type: TABLE; Schema: u_simple1; Owner: postgres
+-- Name: constructions_definition; Type: TABLE; Schema: u_simple1; Owner: -
 --
 
 CREATE TABLE constructions_definition (
@@ -144,38 +134,36 @@ CREATE TABLE constructions_definition (
 );
 
 
-ALTER TABLE constructions_definition OWNER TO postgres;
-
 --
--- Name: TABLE constructions_definition; Type: COMMENT; Schema: u_simple1; Owner: postgres
+-- Name: TABLE constructions_definition; Type: COMMENT; Schema: u_simple1; Owner: -
 --
 
 COMMENT ON TABLE constructions_definition IS 'This table defines remaining steps to construct a structure';
 
 
 --
--- Name: COLUMN constructions_definition.construction_phase; Type: COMMENT; Schema: u_simple1; Owner: postgres
+-- Name: COLUMN constructions_definition.construction_phase; Type: COMMENT; Schema: u_simple1; Owner: -
 --
 
 COMMENT ON COLUMN constructions_definition.construction_phase IS 'The lowest construction_phase is the next one to build (lower ones are already built, i.e. removed from the table). The construction_phase is always only relative number, it can be different among similar constructions and it is not necessarily referring to the level of the structure in construction.';
 
 
 --
--- Name: COLUMN constructions_definition.steps_remaining; Type: COMMENT; Schema: u_simple1; Owner: postgres
+-- Name: COLUMN constructions_definition.steps_remaining; Type: COMMENT; Schema: u_simple1; Owner: -
 --
 
 COMMENT ON COLUMN constructions_definition.steps_remaining IS 'Remaining steps for this given construction_level. The number should be lowered after each succesfull completition of the step. If the step number is 0, the line should be removed whatsoever - a trigger function can be considered.';
 
 
 --
--- Name: COLUMN constructions_definition.type_constructionid; Type: COMMENT; Schema: u_simple1; Owner: postgres
+-- Name: COLUMN constructions_definition.type_constructionid; Type: COMMENT; Schema: u_simple1; Owner: -
 --
 
 COMMENT ON COLUMN constructions_definition.type_constructionid IS 'The definition of endtype construction and its level. It also defines items and stamina required to finish step.';
 
 
 --
--- Name: flow; Type: TABLE; Schema: u_simple1; Owner: postgres
+-- Name: flow; Type: TABLE; Schema: u_simple1; Owner: -
 --
 
 CREATE TABLE flow (
@@ -187,10 +175,8 @@ CREATE TABLE flow (
 );
 
 
-ALTER TABLE flow OWNER TO postgres;
-
 --
--- Name: flows_on_tiles; Type: TABLE; Schema: u_simple1; Owner: postgres
+-- Name: flows_on_tiles; Type: TABLE; Schema: u_simple1; Owner: -
 --
 
 CREATE TABLE flows_on_tiles (
@@ -201,10 +187,8 @@ CREATE TABLE flows_on_tiles (
 );
 
 
-ALTER TABLE flows_on_tiles OWNER TO postgres;
-
 --
--- Name: structure; Type: TABLE; Schema: u_simple1; Owner: postgres
+-- Name: structure; Type: TABLE; Schema: u_simple1; Owner: -
 --
 
 CREATE TABLE structure (
@@ -213,10 +197,8 @@ CREATE TABLE structure (
 );
 
 
-ALTER TABLE structure OWNER TO postgres;
-
 --
--- Name: tile; Type: TABLE; Schema: u_simple1; Owner: postgres
+-- Name: tile; Type: TABLE; Schema: u_simple1; Owner: -
 --
 
 CREATE TABLE tile (
@@ -229,10 +211,8 @@ CREATE TABLE tile (
 );
 
 
-ALTER TABLE tile OWNER TO postgres;
-
 --
--- Name: COLUMN tile.movement_multiplicator; Type: COMMENT; Schema: u_simple1; Owner: postgres
+-- Name: COLUMN tile.movement_multiplicator; Type: COMMENT; Schema: u_simple1; Owner: -
 --
 
 COMMENT ON COLUMN tile.movement_multiplicator IS 'This Field is superficial, it can be extracted from type_tile and type_structure!
@@ -241,7 +221,7 @@ below 1 it is slower than normal, above 1 it is faster (though exponential would
 
 
 --
--- Name: activity activity_pkey; Type: CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: activity activity_pkey; Type: CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY activity
@@ -249,7 +229,7 @@ ALTER TABLE ONLY activity
 
 
 --
--- Name: bh bh_pkey; Type: CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: bh bh_pkey; Type: CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY bh
@@ -257,7 +237,7 @@ ALTER TABLE ONLY bh
 
 
 --
--- Name: construction construction_pkey; Type: CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: construction construction_pkey; Type: CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY construction
@@ -265,7 +245,7 @@ ALTER TABLE ONLY construction
 
 
 --
--- Name: constructions_definition constructions_definition_pkey; Type: CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: constructions_definition constructions_definition_pkey; Type: CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY constructions_definition
@@ -273,7 +253,7 @@ ALTER TABLE ONLY constructions_definition
 
 
 --
--- Name: flow flow_pkey; Type: CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: flow flow_pkey; Type: CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY flow
@@ -281,7 +261,7 @@ ALTER TABLE ONLY flow
 
 
 --
--- Name: flows_on_tiles flows_on_tiles_flowid_order_key; Type: CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: flows_on_tiles flows_on_tiles_flowid_order_key; Type: CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY flows_on_tiles
@@ -289,7 +269,7 @@ ALTER TABLE ONLY flows_on_tiles
 
 
 --
--- Name: flows_on_tiles flows_on_tiles_pkey; Type: CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: flows_on_tiles flows_on_tiles_pkey; Type: CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY flows_on_tiles
@@ -297,7 +277,7 @@ ALTER TABLE ONLY flows_on_tiles
 
 
 --
--- Name: structure structure_pkey; Type: CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: structure structure_pkey; Type: CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY structure
@@ -305,7 +285,7 @@ ALTER TABLE ONLY structure
 
 
 --
--- Name: tile tile_pkey; Type: CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: tile tile_pkey; Type: CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY tile
@@ -313,7 +293,7 @@ ALTER TABLE ONLY tile
 
 
 --
--- Name: tile tile_x_y_key; Type: CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: tile tile_x_y_key; Type: CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY tile
@@ -321,14 +301,14 @@ ALTER TABLE ONLY tile
 
 
 --
--- Name: tile tileid_calculation_trigger; Type: TRIGGER; Schema: u_simple1; Owner: postgres
+-- Name: tile tileid_calculation_trigger; Type: TRIGGER; Schema: u_simple1; Owner: -
 --
 
 CREATE TRIGGER tileid_calculation_trigger BEFORE INSERT ON tile FOR EACH ROW EXECUTE PROCEDURE tileid_calculation();
 
 
 --
--- Name: activity activity_structureid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: activity activity_structureid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY activity
@@ -336,7 +316,7 @@ ALTER TABLE ONLY activity
 
 
 --
--- Name: activity activity_type_activityid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: activity activity_type_activityid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY activity
@@ -344,7 +324,7 @@ ALTER TABLE ONLY activity
 
 
 --
--- Name: bh bh_flowid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: bh bh_flowid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY bh
@@ -352,7 +332,7 @@ ALTER TABLE ONLY bh
 
 
 --
--- Name: bh bh_structureid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: bh bh_structureid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY bh
@@ -360,7 +340,7 @@ ALTER TABLE ONLY bh
 
 
 --
--- Name: bh bh_tileid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: bh bh_tileid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY bh
@@ -368,7 +348,7 @@ ALTER TABLE ONLY bh
 
 
 --
--- Name: construction construction_end_type_structureid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: construction construction_end_type_structureid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY construction
@@ -376,7 +356,7 @@ ALTER TABLE ONLY construction
 
 
 --
--- Name: construction construction_structureid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: construction construction_structureid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY construction
@@ -384,7 +364,7 @@ ALTER TABLE ONLY construction
 
 
 --
--- Name: constructions_definition constructions_definition_type_constructionid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: constructions_definition constructions_definition_type_constructionid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY constructions_definition
@@ -392,7 +372,7 @@ ALTER TABLE ONLY constructions_definition
 
 
 --
--- Name: flow flow_end_structureid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: flow flow_end_structureid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY flow
@@ -400,7 +380,7 @@ ALTER TABLE ONLY flow
 
 
 --
--- Name: flow flow_start_structureid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: flow flow_start_structureid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY flow
@@ -408,7 +388,7 @@ ALTER TABLE ONLY flow
 
 
 --
--- Name: flow flow_type_flowid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: flow flow_type_flowid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY flow
@@ -416,7 +396,7 @@ ALTER TABLE ONLY flow
 
 
 --
--- Name: flows_on_tiles flows_on_tiles_flowid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: flows_on_tiles flows_on_tiles_flowid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY flows_on_tiles
@@ -424,7 +404,7 @@ ALTER TABLE ONLY flows_on_tiles
 
 
 --
--- Name: flows_on_tiles flows_on_tiles_tileid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: flows_on_tiles flows_on_tiles_tileid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY flows_on_tiles
@@ -432,7 +412,7 @@ ALTER TABLE ONLY flows_on_tiles
 
 
 --
--- Name: structure structure_type_structureid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: structure structure_type_structureid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY structure
@@ -440,7 +420,7 @@ ALTER TABLE ONLY structure
 
 
 --
--- Name: tile tile_structureid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: tile tile_structureid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY tile
@@ -448,7 +428,7 @@ ALTER TABLE ONLY tile
 
 
 --
--- Name: tile tile_type_tileid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: postgres
+-- Name: tile tile_type_tileid_fkey; Type: FK CONSTRAINT; Schema: u_simple1; Owner: -
 --
 
 ALTER TABLE ONLY tile

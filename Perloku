@@ -1,0 +1,2 @@
+#!/bin/sh
+prod_tree/production_tree.pl daemon --listen http://*:$PORT --mode production

@@ -9,11 +9,28 @@ $Data::Dumper::Sortkeys = sub { [reverse sort keys %{$_[0]}] };
 
 use Mojolicious::Lite;
 use Mojo::JSON qw(decode_json encode_json);
-use Mojo::Pg;
-# protocol://user:pass@host/database
-my $pg = Mojo::Pg->new('postgresql://postgres:postgres@localhost/econmod_v03');
 
-use Mojolicious::Plugin::Authentication
+#app->config(hypnotoad => {listen => ['http://*:8090']});
+
+say Dumper(\%ENV);
+
+use Mojo::Pg;
+# now we need to use $DATABASE_URL in heroku
+my $pg_conn = qq();
+if (! defined $ENV{'DATABASE_URL'}) {
+	# if there is no such variable then run locally
+	$pg_conn = 'postgresql://postgres:postgres@localhost/econmod_v03';
+} else {
+	# use the variable
+	$pg_conn = $ENV{'DATABASE_URL'};
+};
+# however, protocol for Mojo::Pg is postgresql, not postgres as Heroku gives
+$pg_conn =~ s/^postgres:/postgresql:/;
+
+# protocol://user:pass@host/database
+my $pg = Mojo::Pg->new($pg_conn);
+
+#use Mojolicious::Plugin::Authentication
 
 ##############################################################
 
