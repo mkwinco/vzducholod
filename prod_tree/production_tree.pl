@@ -380,7 +380,7 @@ __DATA__
 
 % content
 %= javascript "//code.jquery.com/jquery-2.1.1.js"
-%= javascript "http://d3js.org/d3.v3.min.js"
+%= javascript "//d3js.org/d3.v3.min.js"
 
 %= javascript "production_tree.js"
 
